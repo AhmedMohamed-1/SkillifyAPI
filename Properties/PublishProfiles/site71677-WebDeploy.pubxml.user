@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+This file is used by the publish/package process of your Web project. You can customize the behavior of this process
+by editing this MSBuild file. In order to learn more about this please visit https://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project>
+  <PropertyGroup>
+    <TimeStampOfAssociatedLegacyPublishXmlFile />
+    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAACHz9vcIbqUSlLkiiROQiuwAAAAACAAAAAAAQZgAAAAEAACAAAADJ8ttuLVk/2g+hyk5u4kI/RJ11TbLb0kz1Za1S0S6cGQAAAAAOgAAAAAIAACAAAACOLtYfHwkg8UtKVMAlC4xygcKbv0qB3egQAjdolPpLZCAAAAB23EnABcxEv0FbYpQ/zaQ496MIvHOuIFGp1beiyD36jEAAAADqRqquDen1VBQEvwqbtESXaQ0b6X9JKSTBNBzCOni9JgahzU8MIssMzKN8I0cBQzqjpT/4PzWsW3GgYVwBYy4K</EncryptedPassword>
+    <History>True|2026-06-12T16:34:44.0086512Z||;True|2026-06-12T18:24:03.4507850+03:00||;True|2026-05-30T21:51:59.9663220+03:00||;True|2026-05-30T21:48:18.9837717+03:00||;True|2026-05-30T21:44:57.9931655+03:00||;True|2026-05-30T21:25:00.0704884+03:00||;True|2026-05-30T15:56:09.5292738+03:00||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+  <ItemGroup>
+    <DestinationConnectionStrings Include="DefaultConnection">
+      <Value>Server=db54148.public.databaseasp.net%3b Database=db54148%3b User Id=db54148%3b Password=c-5L_2Jnf!9T%3b Encrypt=True%3b TrustServerCertificate=True%3b MultipleActiveResultSets=True%3b</Value>
+    </DestinationConnectionStrings>
+  </ItemGroup>
+</Project>

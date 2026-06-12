@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skillify — Video Session</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e2e8f0;
+    }
+
+    #join-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 20px;
+    }
+
+    .tip {
+      max-width: 480px;
+      width: 100%;
+      background: #1a1a2e;
+      border: 1px solid #2d2d4e;
+      border-left: 3px solid #7c3aed;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .tip strong { color: #e2e8f0; }
+
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2d2d4e;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .card h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #7c3aed;
+      margin-bottom: 16px;
+    }
+
+    .field { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0f0f1a;
+      border: 1px solid #2d2d4e;
+      border-radius: 10px;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input:focus, textarea:focus { border-color: #7c3aed; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      color: white;
+      margin-top: 6px;
+    }
+
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    #status {
+      text-align: center;
+      font-size: 0.85rem;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .status-info { background: #1e3a5f; color: #60a5fa; display: block !important; }
+    .status-error { background: #450a0a; color: #f87171; display: block !important; }
+
+    code {
+      background: #0f0f1a;
+      border: 1px solid #2d2d4e;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.8rem;
+      color: #06b6d4;
+    }
+
+    #meeting-screen {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #root {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="join-screen">
+    <h1>🎥 Skillify Video Session</h1>
+
+    <div class="tip">
+      <strong>How to join:</strong><br/>
+      1. Log in via Swagger and copy your JWT access token.<br/>
+      2. Accept the session so it has status <code>Accepted</code> or <code>Active</code>.<br/>
+      3. Enter the session ID and token below, then click <strong>Join Session</strong>.
+    </div>
+
+    <div class="card">
+      <h2>Session details</h2>
+
+      <div id="status"></div>
+
+      <form id="join-form">
+        <div class="field">
+          <label for="sessionId">Session ID</label>
+          <input id="sessionId" type="number" min="1" placeholder="e.g. 5" required />
+        </div>
+
+        <div class="field">
+          <label for="accessToken">Access Token (JWT)</label>
+          <textarea id="accessToken" placeholder="Paste your Bearer token from Swagger / login response" required></textarea>
+        </div>
+
+        <button class="btn" type="submit" id="joinBtn">🎥 Join Session</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="meeting-screen">
+    <div id="root"></div>
+  </div>
+
+  <script src="https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js"></script>
+  <script>
+    const joinScreen = document.getElementById('join-screen');
+    const meetingScreen = document.getElementById('meeting-screen');
+    const joinForm = document.getElementById('join-form');
+    const joinBtn = document.getElementById('joinBtn');
+    const statusEl = document.getElementById('status');
+
+    function setStatus(msg, type) {
+      statusEl.textContent = msg;
+      statusEl.className = `status-${type}`;
+    }
+
+    function clearStatus() {
+      statusEl.style.display = 'none';
+      statusEl.textContent = '';
+      statusEl.className = '';
+    }
+
+    async function joinFromApi(sessionId, accessToken) {
+      const res = await fetch(`/api/Sessions/${sessionId}/zego-token`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to fetch Zego token.');
+      }
+
+      const kitToken = ZegoUIKitPrebuilt.generateKitTokenForProduction(
+        data.appId,
+        data.token,
+        data.roomId,
+        data.userId,
+        data.userName
+      );
+
+      joinScreen.style.display = 'none';
+      meetingScreen.style.display = 'block';
+
+      const zp = ZegoUIKitPrebuilt.create(kitToken);
+      zp.joinRoom({
+        container: document.querySelector('#root'),
+        scenario: {
+          mode: ZegoUIKitPrebuilt.VideoConference,
+        },
+        turnOnMicrophoneWhenJoining: true,
+        turnOnCameraWhenJoining: true,
+        showMyCameraToggleButton: true,
+        showMyMicrophoneToggleButton: true,
+        showAudioVideoSettingsButton: true,
+        showScreenSharingButton: true,
+        showTextChat: true,
+        showUserList: true,
+        maxUsers: 2,
+        layout: 'Auto',
+        showLayoutButton: false,
+      });
+    }
+
+    joinForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearStatus();
+
+      const sessionId = document.getElementById('sessionId').value.trim();
+      const accessToken = document.getElementById('accessToken').value.trim();
+
+      if (!sessionId || !accessToken) {
+        setStatus('Please fill in both fields.', 'error');
+        return;
+      }
+
+      joinBtn.disabled = true;
+      setStatus('Connecting to session...', 'info');
+
+      try {
+        await joinFromApi(sessionId, accessToken);
+      } catch (err) {
+        console.error(err);
+        setStatus(err.message || 'Failed to join session.', 'error');
+        joinBtn.disabled = false;
+      }
+    });
+
+    // Optional: pre-fill from URL if someone bookmarked ?sessionId=5
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('sessionId')) {
+      document.getElementById('sessionId').value = params.get('sessionId');
+    }
+  </script>
+</body>
+</html>
