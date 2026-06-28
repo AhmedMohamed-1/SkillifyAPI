@@ -1,31 +1,62 @@
+using FirebaseAdmin;
 using FluentValidation;
+using Google.Apis.Auth.OAuth2;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using SkillifyAPI.ZegoService;
+using SkillifyAPI.BackgroundService;
 using SkillifyAPI.CloudinaryService;
 using SkillifyAPI.Data;
+using SkillifyAPI.Firebase;
 using SkillifyAPI.JwtService;
 using SkillifyAPI.Repositories.BadgeRepository;
+using SkillifyAPI.Repositories.CreditRepository;
+using SkillifyAPI.Repositories.CreditTransactionRepository;
 using SkillifyAPI.Repositories.LanguageRepository;
 using SkillifyAPI.Repositories.MainSkillRepository;
+using SkillifyAPI.Repositories.NotificationRepository;
+using SkillifyAPI.Repositories.RatingRepository;
+using SkillifyAPI.Repositories.UserDeviceRepository;
+using SkillifyAPI.Repositories.SessionRepository;
 using SkillifyAPI.Repositories.SubSkillRepository;
 using SkillifyAPI.Repositories.UserRepository;
-using SkillifyAPI.Repositories.SessionRepository;
 using SkillifyAPI.Services.BadgeService;
+using SkillifyAPI.Services.CreditService;
+using SkillifyAPI.Services.CreditTransactionService;
 using SkillifyAPI.Services.LanguageService;
 using SkillifyAPI.Services.MainSkillService;
+using SkillifyAPI.Services.NotificationService;
+using SkillifyAPI.Services.RatingService;
 using SkillifyAPI.Services.SessionService;
 using SkillifyAPI.Services.SubSkillService;
 using SkillifyAPI.Services.UserService;
 using SkillifyAPI.Validations.UserValidation;
+using SkillifyAPI.ZegoService;
 using Swashbuckle.AspNetCore.Filters;
 using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+var firebasePath = Path.Combine(
+    builder.Environment.ContentRootPath,
+    "Firebase",
+    "skillifyapi-firebase-adminsdk-fbsvc-a34987d0d8.json");
+
+if (FirebaseApp.DefaultInstance == null)
+{
+    FirebaseApp.Create(new AppOptions
+    {
+        Credential = CredentialFactory
+            .FromFile<ServiceAccountCredential>(firebasePath)
+            .ToGoogleCredential()
+    });
+}
+
+
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary"));
 // ── Controllers ───────────────────────────────────────────────────────────────
@@ -36,10 +67,10 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1.1", new OpenApiInfo
+    options.SwaggerDoc("v1.3", new OpenApiInfo
     {
         Title = "Skillify API",
-        Version = "v1.1",
+        Version = "v1.3",
         Description = "Peer-to-peer skill exchange platform API"
     });
 
@@ -142,8 +173,24 @@ builder.Services.AddScoped<ILanguageService, LanguageService>();
 builder.Services.AddScoped<IBadgeRepository, BadgeRepository>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IRatingRepository, RatingRepository>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+builder.Services.AddScoped<ICreditRepository, CreditRepository>();
+builder.Services.AddScoped<ICreditService, CreditService>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+builder.Services.AddScoped<IZegoTokenService, ZegoTokenService>();
+builder.Services.AddScoped<IZegoRoomService, ZegoRoomService>();
+builder.Services.AddScoped<ISessionMeetingService, SessionMeetingService>();
+builder.Services.AddScoped<ICreditTransactionRepository, CreditTransactionRepository>();
+builder.Services.AddScoped<ICreditTransactionService, CreditTransactionService>();
+
+builder.Services.AddScoped<IFirebaseNotificationService,FirebaseNotificationService>();
+
+builder.Services.AddScoped<DailyGift>();
 
 // ── CORS (adjust origins for production) ──────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -213,12 +260,6 @@ builder.Services.AddHangfire(config => config
 
 builder.Services.AddHangfireServer();
 
-// Register your services
-builder.Services.AddScoped<IZegoTokenService, ZegoTokenService>();
-builder.Services.AddScoped<IZegoRoomService, ZegoRoomService>();
-builder.Services.AddScoped<ISessionMeetingService, SessionMeetingService>();
-
-
 
 
 
@@ -230,7 +271,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1.1/swagger.json", "Skillify API v1.1");
+        options.SwaggerEndpoint("/swagger/v1.3/swagger.json", "Skillify API v1.3");
         options.DocumentTitle = "Skillify API";
         options.RoutePrefix = "swagger";
         options.DisplayRequestDuration();
@@ -256,8 +297,11 @@ using (var scope = app.Services.CreateScope())
 //}
 
 // In app pipeline
-app.UseHangfireDashboard("/hangfire"); // optional, remove in prod or auth-gate it
-
+//app.UseHangfireDashboard("/hangfire"); // optional, remove in prod or auth-gate it
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = Array.Empty<Hangfire.Dashboard.IDashboardAuthorizationFilter>()
+});
 
 app.UseStaticFiles(); // serves wwwroot/WEB_UIKITS.html
 
@@ -267,6 +311,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();   // ← must be AFTER app.UseAuthentication() and app.UseAuthorization()
 app.MapControllers().RequireRateLimiting("FixedWindow");
+
+RecurringJob.AddOrUpdate<DailyGift>(
+    "daily-gift-credits",
+    job => job.ExecuteAsync(),
+    Cron.Daily(3));
+
 
 app.Run();
 

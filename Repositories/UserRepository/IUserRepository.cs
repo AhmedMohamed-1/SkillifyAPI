@@ -11,6 +11,8 @@ namespace SkillifyAPI.Repositories.UserRepository
     /// </summary>
     public interface IUserRepository
     {
+
+        Task<IEnumerable<User>> GetEligbleUsersForGift(CancellationToken ct = default);
         Task<bool> SignUpAsync(User user, CancellationToken ct = default);
         Task<User?> GetUserByIdAsync(int userId, CancellationToken ct = default);
         Task<User?> GetUserByEmailAsync(string email, CancellationToken ct = default);

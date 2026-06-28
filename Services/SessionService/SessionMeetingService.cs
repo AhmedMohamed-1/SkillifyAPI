@@ -5,6 +5,8 @@ using SkillifyAPI.Models;
 using SkillifyAPI.Repositories.SessionRepository;
 using SkillifyAPI.Repositories.UserRepository;
 
+using SkillifyAPI.Services.CreditService;
+
 namespace SkillifyAPI.Services.SessionService
 {
     public class SessionMeetingService : ISessionMeetingService
@@ -12,15 +14,18 @@ namespace SkillifyAPI.Services.SessionService
         private readonly ISessionRepository _sessionRepository;
         private readonly IUserRepository _userRepository;
         private readonly IZegoRoomService _zegoRoom;
+        private readonly ICreditService _creditService;
 
         public SessionMeetingService(
             ISessionRepository sessionRepository,
             IUserRepository userRepository,
-            IZegoRoomService zegoRoom)
+            IZegoRoomService zegoRoom,
+            ICreditService creditService)
         {
             _sessionRepository = sessionRepository;
             _userRepository = userRepository;
             _zegoRoom = zegoRoom;
+            _creditService = creditService;
         }
 
         // Called when Helper accepts the session request
@@ -129,7 +134,7 @@ namespace SkillifyAPI.Services.SessionService
                 CreatedAt = DateTime.UtcNow
             });
 
-            if (session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held)
+            if (session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held && session.Status == SessionStatus.Completed)
             {
                 session.EscrowHold.Status = EscrowStatus.Released;
                 session.EscrowHold.ReleasedAt = DateTime.UtcNow;
@@ -137,18 +142,11 @@ namespace SkillifyAPI.Services.SessionService
                 var helper = await _userRepository.GetUserByIdAsync(session.HelperId);
                 if (helper != null)
                 {
-                    helper.CreditBalance += session.EscrowHold.CreditsHeld;
-
-                    var releaseTx = new CreditTransaction
-                    {
-                        UserId = session.HelperId,
-                        Type = TransactionType.EscrowRelease,
-                        Amount = session.EscrowHold.CreditsHeld,
-                        BalanceAfter = helper.CreditBalance,
-                        CreatedAt = DateTime.UtcNow,
-                        SessionId = session.Id
-                    };
-                    await _sessionRepository.AddCreditTransactionAsync(releaseTx);
+                    await _creditService.AddCreditsAsync(
+                        session.HelperId,
+                        session.EscrowHold.CreditsHeld,
+                        TransactionType.EscrowRelease,
+                        session.Id);
                 }
             }
 
@@ -205,8 +203,7 @@ namespace SkillifyAPI.Services.SessionService
                 throw new InvalidOperationException($"Insufficient credits. Required: {creditCost}, Available: {requester.CreditBalance}.");
             }
 
-            // Deduct credits and setup escrow immediately
-            requester.CreditBalance -= creditCost;
+            // Setup escrow immediately (deduction is handled below)
 
             var session = new Session
             {
@@ -235,16 +232,12 @@ namespace SkillifyAPI.Services.SessionService
             };
             await _sessionRepository.AddEscrowHoldAsync(escrow, ct);
 
-            var transaction = new CreditTransaction
-            {
-                UserId = requesterId,
-                Type = TransactionType.EscrowHold,
-                Amount = -creditCost,
-                BalanceAfter = requester.CreditBalance,
-                CreatedAt = DateTime.UtcNow,
-                SessionId = session.Id
-            };
-            await _sessionRepository.AddCreditTransactionAsync(transaction, ct);
+            await _creditService.DeductCreditsAsync(
+                requesterId,
+                creditCost,
+                TransactionType.EscrowHold,
+                session.Id,
+                ct);
 
             var sessionEvent = new SessionEvent
             {
@@ -383,13 +376,6 @@ namespace SkillifyAPI.Services.SessionService
                     ?? throw new InvalidOperationException("Requester user not found.");
 
                 int cost = session.CreditCost;
-                if (requester.CreditBalance < cost)
-                {
-                    throw new InvalidOperationException($"Insufficient credits from requester. Required: {cost}, Available: {requester.CreditBalance}.");
-                }
-
-                requester.CreditBalance -= cost;
-
                 var escrow = new EscrowHold
                 {
                     RequesterId = session.RequesterId,
@@ -400,16 +386,12 @@ namespace SkillifyAPI.Services.SessionService
                 };
                 await _sessionRepository.AddEscrowHoldAsync(escrow, ct);
 
-                var transaction = new CreditTransaction
-                {
-                    UserId = session.RequesterId,
-                    Type = TransactionType.EscrowHold,
-                    Amount = -cost,
-                    BalanceAfter = requester.CreditBalance,
-                    CreatedAt = DateTime.UtcNow,
-                    SessionId = session.Id
-                };
-                await _sessionRepository.AddCreditTransactionAsync(transaction, ct);
+                await _creditService.DeductCreditsAsync(
+                    session.RequesterId,
+                    cost,
+                    TransactionType.EscrowHold,
+                    session.Id,
+                    ct);
             }
 
             // Execute actual acceptance (tokens and hangfire schedules)
@@ -442,18 +424,12 @@ namespace SkillifyAPI.Services.SessionService
                 var requester = await _userRepository.GetUserByIdAsync(session.RequesterId, ct);
                 if (requester != null)
                 {
-                    requester.CreditBalance += session.EscrowHold.CreditsHeld;
-
-                    var refundTx = new CreditTransaction
-                    {
-                        UserId = session.RequesterId,
-                        Type = TransactionType.Refund,
-                        Amount = session.EscrowHold.CreditsHeld,
-                        BalanceAfter = requester.CreditBalance,
-                        CreatedAt = DateTime.UtcNow,
-                        SessionId = session.Id
-                    };
-                    await _sessionRepository.AddCreditTransactionAsync(refundTx, ct);
+                    await _creditService.AddCreditsAsync(
+                        session.RequesterId,
+                        session.EscrowHold.CreditsHeld,
+                        TransactionType.Refund,
+                        session.Id,
+                        ct);
                 }
             }
 
@@ -499,18 +475,12 @@ namespace SkillifyAPI.Services.SessionService
                 var requester = await _userRepository.GetUserByIdAsync(session.RequesterId, ct);
                 if (requester != null)
                 {
-                    requester.CreditBalance += session.EscrowHold.CreditsHeld;
-
-                    var refundTx = new CreditTransaction
-                    {
-                        UserId = session.RequesterId,
-                        Type = TransactionType.Refund,
-                        Amount = session.EscrowHold.CreditsHeld,
-                        BalanceAfter = requester.CreditBalance,
-                        CreatedAt = DateTime.UtcNow,
-                        SessionId = session.Id
-                    };
-                    await _sessionRepository.AddCreditTransactionAsync(refundTx, ct);
+                    await _creditService.AddCreditsAsync(
+                        session.RequesterId,
+                        session.EscrowHold.CreditsHeld,
+                        TransactionType.Refund,
+                        session.Id,
+                        ct);
                 }
             }
 
@@ -525,7 +495,7 @@ namespace SkillifyAPI.Services.SessionService
             await _sessionRepository.SaveChangesAsync(ct);
         }
 
-        public async Task RescheduleSessionAsync(int userId, int sessionId, DateTime newScheduledAt, CancellationToken ct = default)
+        public async Task RescheduleSessionAsync(int userId, int sessionId, DateTime newScheduledAt, string? comment = null, CancellationToken ct = default)
         {
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId, ct)
                 ?? throw new KeyNotFoundException("Session not found.");
@@ -564,7 +534,8 @@ namespace SkillifyAPI.Services.SessionService
                 SessionId = session.Id,
                 UserId = userId,
                 Type = SessionStatus.ReOffered,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Comment = comment
             }, ct);
 
             await _sessionRepository.SaveChangesAsync(ct);

@@ -13,6 +13,13 @@ namespace SkillifyAPI.Repositories.UserRepository
             _context = context;
         }
 
+        public async Task<IEnumerable<User>> GetEligbleUsersForGift(CancellationToken ct = default)
+        {
+            return await _context.Users
+                .Where(u => u.CreditBalance < 15 && (u.LastGiftCreditAt < DateTime.UtcNow.AddDays(-30) || u.LastGiftCreditAt == null))
+                .ToListAsync(ct);
+        }
+
         public async Task<bool> SignUpAsync(User user, CancellationToken ct = default)
         {
             await _context.Users.AddAsync(user, ct);

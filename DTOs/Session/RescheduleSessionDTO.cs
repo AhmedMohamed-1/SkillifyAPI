@@ -6,5 +6,7 @@ namespace SkillifyAPI.DTOs.Session
     {
         [Required]
         public DateTime NewScheduledAt { get; set; }
+
+        public string? Comment { get; set; }
     }
 }

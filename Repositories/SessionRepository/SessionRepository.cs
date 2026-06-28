@@ -66,10 +66,6 @@ namespace SkillifyAPI.Repositories.SessionRepository
             await _context.EscrowHolds.AddAsync(escrowHold, ct);
         }
 
-        public async Task AddCreditTransactionAsync(CreditTransaction transaction, CancellationToken ct = default)
-        {
-            await _context.CreditTransactions.AddAsync(transaction, ct);
-        }
 
         public async Task SaveChangesAsync(CancellationToken ct = default)
         {

@@ -75,6 +75,9 @@ namespace SkillifyAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("SessionId")
                         .HasColumnType("int");
 
@@ -178,6 +181,38 @@ namespace SkillifyAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("MainSkills");
+                });
+
+            modelBuilder.Entity("SkillifyAPI.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("SkillifyAPI.Models.PushToken", b =>
@@ -367,6 +402,9 @@ namespace SkillifyAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Comment")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -445,6 +483,9 @@ namespace SkillifyAPI.Migrations
                     b.Property<string>("JobTitle")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("LastGiftCreditAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -496,6 +537,40 @@ namespace SkillifyAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("UserBadges");
+                });
+
+            modelBuilder.Entity("SkillifyAPI.Models.UserDevice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FcmToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FcmToken")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("UserDevices");
                 });
 
             modelBuilder.Entity("SkillifyAPI.Models.UserLanguage", b =>
@@ -605,6 +680,17 @@ namespace SkillifyAPI.Migrations
                     b.Navigation("Requester");
 
                     b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("SkillifyAPI.Models.Notification", b =>
+                {
+                    b.HasOne("SkillifyAPI.Models.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SkillifyAPI.Models.PushToken", b =>
@@ -732,6 +818,17 @@ namespace SkillifyAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SkillifyAPI.Models.UserDevice", b =>
+                {
+                    b.HasOne("SkillifyAPI.Models.User", "User")
+                        .WithMany("Devices")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SkillifyAPI.Models.UserLanguage", b =>
                 {
                     b.HasOne("SkillifyAPI.Models.Language", "Language")
@@ -821,6 +918,8 @@ namespace SkillifyAPI.Migrations
 
                     b.Navigation("CreditTransactions");
 
+                    b.Navigation("Devices");
+
                     b.Navigation("EscrowHolds");
 
                     b.Navigation("GivenRatings");
@@ -828,6 +927,8 @@ namespace SkillifyAPI.Migrations
                     b.Navigation("HelpedSessions");
 
                     b.Navigation("Languages");
+
+                    b.Navigation("Notifications");
 
                     b.Navigation("PushTokens");
 

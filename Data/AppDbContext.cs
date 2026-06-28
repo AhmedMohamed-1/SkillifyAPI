@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SkillifyAPI.Models;
 
 namespace SkillifyAPI.Data
@@ -23,6 +23,8 @@ namespace SkillifyAPI.Data
         public DbSet<UserBadge> UserBadges => Set<UserBadge>();
         public DbSet<PushToken> PushTokens => Set<PushToken>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<UserDevice> UserDevices => Set<UserDevice>();
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -261,6 +263,30 @@ namespace SkillifyAPI.Data
             b.Entity<RefreshToken>()
                 .Property(rt => rt.Id)
                 .UseIdentityColumn();
+
+            // ── Notification ───────────────────────────────────────────────────
+            b.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.CreatedAt });
+
+            // ── UserDevice ─────────────────────────────────────────────────────
+            b.Entity<UserDevice>()
+                .HasOne(d => d.User)
+                .WithMany(u => u.Devices)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.Entity<UserDevice>()
+                .HasIndex(d => d.FcmToken)
+                .IsUnique();
+
+            b.Entity<UserDevice>()
+                .HasIndex(d => new { d.UserId, d.IsActive });
         }
     }
 }

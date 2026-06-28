@@ -15,7 +15,7 @@ namespace SkillifyAPI.Services.SessionService
         Task AcceptSessionAsync(int userId, int sessionId, CancellationToken ct = default);
         Task DeclineSessionAsync(int helperId, int sessionId, CancellationToken ct = default);
         Task CancelSessionAsync(int userId, int sessionId, CancellationToken ct = default);
-        Task RescheduleSessionAsync(int userId, int sessionId, DateTime newScheduledAt, CancellationToken ct = default);
+        Task RescheduleSessionAsync(int userId, int sessionId, DateTime newScheduledAt, string? comment = null, CancellationToken ct = default);
         Task<GetSessionDTO> GetSessionByIdAsync(int userId, int sessionId, CancellationToken ct = default);
         Task<IEnumerable<GetSessionDTO>> GetRequestedSessionsAsync(int requesterId, CancellationToken ct = default);
         Task<IEnumerable<GetSessionDTO>> GetReceivedSessionsAsync(int helperId, CancellationToken ct = default);

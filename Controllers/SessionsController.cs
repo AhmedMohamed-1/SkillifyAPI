@@ -298,7 +298,7 @@ namespace SkillifyAPI.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                await _sessionMeetingService.RescheduleSessionAsync(userId, sessionId, dto.NewScheduledAt, ct);
+                await _sessionMeetingService.RescheduleSessionAsync(userId, sessionId, dto.NewScheduledAt, dto.Comment, ct);
                 return Ok(new { message = "Session rescheduled successfully. The other party must accept the proposal." });
             }
             catch (ArgumentException ex)
