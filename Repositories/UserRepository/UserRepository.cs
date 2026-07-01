@@ -90,8 +90,23 @@ namespace SkillifyAPI.Repositories.UserRepository
             _context.UserSkills.RemoveRange(skills);
         }
 
-        public async Task AddUserSkillAsync(UserSkill userSkill, CancellationToken ct = default)
-            => await _context.UserSkills.AddAsync(userSkill, ct);
+        public async Task AddUserSkillsAsync(IEnumerable<UserSkill> userSkills, CancellationToken ct = default)
+            => await _context.UserSkills.AddRangeAsync(userSkills, ct);
+
+        public async Task<bool> LanguagesExistAsync(IReadOnlyCollection<int> languageIds, CancellationToken ct = default)
+        {
+            if (languageIds.Count == 0) return true;
+            var count = await _context.Languages.CountAsync(l => languageIds.Contains(l.Id), ct);
+            return count == languageIds.Count;
+        }
+
+        public async Task RemoveUserLanguagesAsync(int userId, CancellationToken ct = default)
+        {
+            await _context.UserLanguages.Where(l => l.UserId == userId).ExecuteDeleteAsync(ct);
+        }
+
+        public async Task AddUserLanguagesAsync(IEnumerable<UserLanguage> userLanguages, CancellationToken ct = default)
+            => await _context.UserLanguages.AddRangeAsync(userLanguages, ct);
 
         public Task SaveChangesAsync(CancellationToken ct = default)
             => _context.SaveChangesAsync(ct);

@@ -172,7 +172,19 @@ namespace SkillifyAPI.Services.UserService
                 ?? throw new KeyNotFoundException("User not found.");
 
             await ValidateSkillSelectionAsync(dto.OfferedMainSkill, dto.OfferedSubSkills, ct);
-            await ValidateSkillSelectionAsync(dto.NeededMainSkill, dto.NeededSubSkills, ct);
+            foreach (var needed in dto.NeededSkills)
+                await ValidateSkillSelectionAsync(needed.MainSkillId, needed.SubSkillIds, ct);
+
+            List<int>? languageIds = null;
+
+            if (dto.LanguageIds is not null)
+            {
+                languageIds = dto.LanguageIds.Distinct().ToList();
+                if (languageIds.Count > 0 && !await _repo.LanguagesExistAsync(languageIds, ct))
+                {
+                    throw new InvalidOperationException("One or more selected languages are invalid.");
+                }
+            }
 
             // ?? Handle Profile Picture ???????????????????????????????
             if (dto.ProfilePicture is not null)
@@ -197,8 +209,31 @@ namespace SkillifyAPI.Services.UserService
 
 
             await _repo.RemoveUserSkillsAsync(userId, ct);
-            await _repo.AddUserSkillAsync(BuildUserSkill(userId, dto.OfferedMainSkill, dto.OfferedSubSkills, dto.OfferedDescription, SkillType.Offered), ct);
-            await _repo.AddUserSkillAsync(BuildUserSkill(userId, dto.NeededMainSkill, dto.NeededSubSkills, dto.NeededDescription, SkillType.Needed), ct);
+
+            var userSkills = new List<UserSkill>
+            {
+                BuildUserSkill(userId, dto.OfferedMainSkill, dto.OfferedSubSkills, dto.OfferedDescription, SkillType.Offered)
+            };
+
+            foreach (var needed in dto.NeededSkills)
+            {
+                userSkills.Add(BuildUserSkill(userId, needed.MainSkillId, needed.SubSkillIds, needed.Description, SkillType.Needed));
+            }
+
+            await _repo.AddUserSkillsAsync(userSkills, ct);
+
+            if (languageIds is not null)
+            {
+                await _repo.RemoveUserLanguagesAsync(userId, ct);
+
+                await _repo.AddUserLanguagesAsync(
+                    languageIds.Select(id => new UserLanguage
+                    {
+                        UserId = userId,
+                        LanguageId = id
+                    }),
+                    ct);
+            }
 
             await _repo.SaveChangesAsync(ct);
 

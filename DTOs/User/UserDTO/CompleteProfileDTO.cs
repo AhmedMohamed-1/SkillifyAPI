@@ -1,4 +1,6 @@
-﻿namespace SkillifyAPI.DTOs.User.UserDTO
+using SkillifyAPI.DTOs.Skill.SkillDTO;
+
+namespace SkillifyAPI.DTOs.User.UserDTO
 {
     /// <summary>
     /// Request payload used to complete user profile information.
@@ -13,8 +15,8 @@
         public int[] OfferedSubSkills { get; set; } = null!;
         public string? OfferedDescription { get; set; }
 
-        public int NeededMainSkill { get; set; }
-        public int[] NeededSubSkills { get; set; } = null!;
-        public string? NeededDescription { get; set; }
+        public UserSkillSelectionDTO[] NeededSkills { get; set; } = null!;
+
+        public List<int>? LanguageIds { get; set; }
     }
 }

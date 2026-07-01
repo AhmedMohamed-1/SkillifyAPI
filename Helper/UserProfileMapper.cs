@@ -38,7 +38,7 @@ namespace SkillifyAPI.Helper
         public static GetUserProfileData ToProfileDto(User user, int completedSessionsCount)
         {
             var offered = user.Skills.FirstOrDefault(s => s.SkillType == SkillType.Offered);
-            var needed = user.Skills.FirstOrDefault(s => s.SkillType == SkillType.Needed);
+            var neededSkills = user.Skills.Where(s => s.SkillType == SkillType.Needed).ToList();
             var reviews = user.ReceivedRatings.ToList();
 
             return new GetUserProfileData
@@ -64,7 +64,7 @@ namespace SkillifyAPI.Helper
                     Code = ul.Language.Code
                 }).ToList(),
                 OfferedSkill = ToUserSkillDto(offered),
-                NeededSkill = ToUserSkillDto(needed),
+                NeededSkills = neededSkills.Select(ToUserSkillDto).Where(s => s != null).Cast<GetUserSkillDTO>().ToList(),
                 CompletedSessions = completedSessionsCount.ToString(),
                 ReceivedReviews = reviews.Select(r => new GetReceivedReviewDTO
                 {
@@ -89,7 +89,7 @@ namespace SkillifyAPI.Helper
         public static UsersListDTO ToListItemDto(User user)
         {
             var offered = user.Skills.FirstOrDefault(s => s.SkillType == SkillType.Offered);
-            var needed = user.Skills.FirstOrDefault(s => s.SkillType == SkillType.Needed);
+            var neededSkills = user.Skills.Where(s => s.SkillType == SkillType.Needed).ToList();
 
             return new UsersListDTO
             {
@@ -104,13 +104,15 @@ namespace SkillifyAPI.Helper
                     Slug = offered.Category.Slug,
                     IconKey = offered.Category.IconKey
                 },
-                NeededMainSkill = needed?.Category == null ? null : new GetMainSkillDTO
-                {
-                    Id = needed.Category.Id,
-                    Name = needed.Category.Name,
-                    Slug = needed.Category.Slug,
-                    IconKey = needed.Category.IconKey
-                }
+                NeededMainSkills = neededSkills
+                    .Where(s => s.Category != null)
+                    .Select(s => new GetMainSkillDTO
+                    {
+                        Id = s.Category.Id,
+                        Name = s.Category.Name,
+                        Slug = s.Category.Slug,
+                        IconKey = s.Category.IconKey
+                    }).ToList()
             };
         }
     }

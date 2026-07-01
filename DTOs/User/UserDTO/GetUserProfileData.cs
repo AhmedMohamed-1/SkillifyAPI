@@ -20,7 +20,7 @@ namespace SkillifyAPI.DTOs.User.UserDTO
         public ICollection<GetLanguageDTO> Languages { get; set; } = [];
 
         public GetUserSkillDTO? OfferedSkill { get; set; }
-        public GetUserSkillDTO? NeededSkill { get; set; }
+        public ICollection<GetUserSkillDTO> NeededSkills { get; set; } = [];
 
         public string CompletedSessions { get; set; } = null!;
         public ICollection<GetReceivedReviewDTO> ReceivedReviews { get; set; } = [];

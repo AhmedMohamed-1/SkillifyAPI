@@ -22,7 +22,11 @@ namespace SkillifyAPI.Repositories.UserRepository
         Task<bool> MainSkillExistsAsync(int mainSkillId, CancellationToken ct = default);
         Task<bool> SubSkillsExistForMainSkillAsync(int mainSkillId, IEnumerable<int> subSkillIds, CancellationToken ct = default);
         Task RemoveUserSkillsAsync(int userId, CancellationToken ct = default);
-        Task AddUserSkillAsync(UserSkill userSkill, CancellationToken ct = default);
+        Task AddUserSkillsAsync(IEnumerable<UserSkill> userSkills, CancellationToken ct = default);
+
+        Task<bool> LanguagesExistAsync(IReadOnlyCollection<int> languageIds, CancellationToken ct = default);
+        Task RemoveUserLanguagesAsync(int userId, CancellationToken ct = default);
+        Task AddUserLanguagesAsync(IEnumerable<UserLanguage> userLanguages, CancellationToken ct = default);
         
         /// <summary>
         /// Commits all pending changes to the database. Must be called after write operations.

@@ -12,6 +12,6 @@ namespace SkillifyAPI.DTOs.User.UserDTO
         public string? JobTitle { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public GetMainSkillDTO? OfferedMainSkill { get; set; }
-        public GetMainSkillDTO? NeededMainSkill { get; set; }
+        public ICollection<GetMainSkillDTO> NeededMainSkills { get; set; } = [];
     }
 }
