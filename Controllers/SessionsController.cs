@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SkillifyAPI.DTOs;
 using SkillifyAPI.ZegoService;
 using SkillifyAPI.DTOs.Session;
 using SkillifyAPI.Models;
@@ -336,7 +337,7 @@ namespace SkillifyAPI.Controllers
             Summary = "Get requested sessions",
             Description = "Retrieves a list of all help sessions requested by the currently authenticated user."
         )]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<object>))]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<GetSessionDTO>))]
         [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
         public async Task<IActionResult> GetRequestedSessions(CancellationToken ct)
@@ -366,7 +367,7 @@ namespace SkillifyAPI.Controllers
             Summary = "Get received sessions",
             Description = "Retrieves a list of all help session requests received by the currently authenticated user."
         )]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<object>))]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<GetSessionDTO>))]
         [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
         public async Task<IActionResult> GetReceivedSessions(CancellationToken ct)
@@ -398,7 +399,7 @@ namespace SkillifyAPI.Controllers
             Summary = "Get a session by ID",
             Description = "Retrieves detailed information about a specific session. User must be a participant."
         )]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GetSessionDTO))]
         [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]

@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using SkillifyAPI.DTOs;
+using SkillifyAPI.DTOs.CreditTransaction;
 using SkillifyAPI.Services.CreditTransactionService;
 using System.Security.Claims;
 
@@ -14,7 +16,9 @@ namespace SkillifyAPI.Controllers
         {
             _service = service;
         }
-
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<CreditTransactionDto>))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory()
         {

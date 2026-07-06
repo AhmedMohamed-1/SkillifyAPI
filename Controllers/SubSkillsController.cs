@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SkillifyAPI.DTOs;
 using SkillifyAPI.DTOs.Skill.SkillDTO;
 using SkillifyAPI.Services.SubSkillService;
 using Swashbuckle.AspNetCore.Annotations;

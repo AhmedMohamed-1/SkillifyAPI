@@ -12,6 +12,6 @@ namespace SkillifyAPI.Services.UserService
         Task SignOutAsync(int userId, string? refreshToken = null, CancellationToken ct = default);
         Task<GetUserProfileData> GetProfileAsync(int userId, CancellationToken ct = default);
         Task<GetUserProfileData> CompleteProfileAsync(int userId, CompleteProfileDTO dto, CancellationToken ct = default);
-        Task<PagedResult<UsersListDTO>> GetUsersAsync(int page, int pageSize, CancellationToken ct = default);
+        Task<PagedResult<UsersListDTO>> GetUsersAsync(int page, int pageSize, string? name = null, int? skillId = null, decimal? minRating = null, int? langId = null, CancellationToken ct = default);
     }
 }

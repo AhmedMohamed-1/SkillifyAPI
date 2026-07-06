@@ -240,9 +240,9 @@ namespace SkillifyAPI.Services.UserService
             return await GetProfileAsync(userId, ct);
         }
 
-        public async Task<SkillifyAPI.DTOs.PagedResult<UsersListDTO>> GetUsersAsync(int page, int pageSize, CancellationToken ct = default)
+        public async Task<SkillifyAPI.DTOs.PagedResult<UsersListDTO>> GetUsersAsync(int page, int pageSize, string? name = null, int? skillId = null, decimal? minRating = null, int? langId = null, CancellationToken ct = default)
         {
-            var (users, totalCount) = await _repo.GetUsersPagedAsync(page, pageSize, ct);
+            var (users, totalCount) = await _repo.GetUsersPagedAsync(page, pageSize, name, skillId, minRating, langId, ct);
             return new SkillifyAPI.DTOs.PagedResult<UsersListDTO>(users.Select(UserProfileMapper.ToListItemDto), totalCount);
         }
 

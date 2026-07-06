@@ -1,9 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using SkillifyAPI.DTOs;
+using Microsoft.IdentityModel.Tokens;
 using SkillifyAPI.DTOs.User.UserDTO;
 using SkillifyAPI.Services.UserService;
 using Swashbuckle.AspNetCore.Annotations;
@@ -307,10 +306,14 @@ namespace SkillifyAPI.Controllers
         }
 
         /// <summary>
-        /// Retrieves a paginated list of all users.
+        /// Retrieves a paginated list of all users, optionally filtered by name, skill, minimum rating, and language.
         /// </summary>
         /// <param name="page">The page number, defaulting to 1.</param>
         /// <param name="pageSize">The number of users per page, defaulting to 20.</param>
+        /// <param name="name">Optional user name to search for.</param>
+        /// <param name="skillId">Optional ID of a main skill the user offers or needs.</param>
+        /// <param name="minRating">Optional minimum average rating.</param>
+        /// <param name="langId">Optional language ID the user knows.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A paginated list of users.</returns>
         /// <response code="200">List of users retrieved successfully.</response>
@@ -318,13 +321,13 @@ namespace SkillifyAPI.Controllers
         /// <response code="500">An unexpected internal server error occurred.</response>
         [HttpGet]
         [SwaggerOperation(
-            Summary = "Get all users (paginated)",
-            Description = "Retrieves a paginated list of registered users on the platform with their brief profiles."
+            Summary = "Get all users (paginated and filtered)",
+            Description = "Retrieves a paginated list of registered users, with optional filtering."
         )]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<UsersListDTO>))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
-        public async Task<ActionResult<PagedResult<UsersListDTO>>> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        public async Task<ActionResult<PagedResult<UsersListDTO>>> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? name = null, [FromQuery] int? skillId = null, [FromQuery] decimal? minRating = null, [FromQuery] int? langId = null, CancellationToken ct = default)
         {
             try
             {
@@ -332,7 +335,7 @@ namespace SkillifyAPI.Controllers
                 {
                     return BadRequest(new { message = "Page and page size must be greater than or equal to 1." });
                 }
-                var usersResult = await _userService.GetUsersAsync(page, pageSize, ct);
+                var usersResult = await _userService.GetUsersAsync(page, pageSize, name, skillId, minRating, langId, ct);
                 return Ok(usersResult);
             }
             catch (ArgumentException ex)
@@ -342,6 +345,43 @@ namespace SkillifyAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred while retrieving users." + ex.Message});
+            }
+        }
+
+        /// <summary>
+        /// Retrieves the profile information of a specific user by their ID.
+        /// </summary>
+        /// <param name="id">The ID of the user.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The profile data of the specified user.</returns>
+        /// <response code="200">Profile data retrieved successfully.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="404">User profile not found.</response>
+        /// <response code="500">An unexpected internal server error occurred.</response>
+        [Authorize]
+        [HttpGet("{id}")]
+        [SwaggerOperation(
+            Summary = "Get user profile by ID",
+            Description = "Fetches the full profile details of a specific user by their ID."
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GetUserProfileData))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
+        public async Task<ActionResult<GetUserProfileData>> GetUserProfile(int id, CancellationToken ct)
+        {
+            try
+            {
+                var profile = await _userService.GetProfileAsync(id, ct);
+                return Ok(profile);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred while fetching profile." + ex.Message});
             }
         }
 

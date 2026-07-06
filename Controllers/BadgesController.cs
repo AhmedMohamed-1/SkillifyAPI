@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SkillifyAPI.DTOs;
 using SkillifyAPI.DTOs.Badge.BadgeDTO;
 using SkillifyAPI.Services.BadgeService;
 using Swashbuckle.AspNetCore.Annotations;

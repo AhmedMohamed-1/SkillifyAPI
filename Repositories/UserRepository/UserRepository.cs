@@ -42,9 +42,22 @@ namespace SkillifyAPI.Repositories.UserRepository
                 .Include(u => u.ReceivedRatings).ThenInclude(r => r.Reviewer)
                 .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-        public async Task<(IEnumerable<User> Users, int TotalCount)> GetUsersPagedAsync(int page, int pageSize, CancellationToken ct = default)
+        public async Task<(IEnumerable<User> Users, int TotalCount)> GetUsersPagedAsync(int page, int pageSize, string? name = null, int? skillId = null, decimal? minRating = null, int? langId = null, CancellationToken ct = default)
         {
             var query = _context.Users.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(name))
+                query = query.Where(u => u.FullName.Contains(name));
+
+            if (skillId.HasValue)
+                query = query.Where(u => u.Skills.Any(s => s.CategoryId == skillId.Value));
+
+            if (minRating.HasValue)
+                query = query.Where(u => u.ReceivedRatings.Any() && u.ReceivedRatings.Average(r => r.Score) >= minRating.Value);
+
+            if (langId.HasValue)
+                query = query.Where(u => u.Languages.Any(l => l.LanguageId == langId.Value));
+
             var totalCount = await query.CountAsync(ct);
             var users = await query
                 .Include(u => u.Skills).ThenInclude(s => s.Category)

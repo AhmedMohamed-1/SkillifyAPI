@@ -17,7 +17,7 @@ namespace SkillifyAPI.Repositories.UserRepository
         Task<User?> GetUserByIdAsync(int userId, CancellationToken ct = default);
         Task<User?> GetUserByEmailAsync(string email, CancellationToken ct = default);
         Task<User?> GetUserForProfileAsync(int userId, CancellationToken ct = default);
-        Task<(IEnumerable<User> Users, int TotalCount)> GetUsersPagedAsync(int page, int pageSize, CancellationToken ct = default);
+        Task<(IEnumerable<User> Users, int TotalCount)> GetUsersPagedAsync(int page, int pageSize, string? name = null, int? skillId = null, decimal? minRating = null, int? langId = null, CancellationToken ct = default);
         Task<int> GetCompletedSessionsCountAsync(int userId, CancellationToken ct = default);
         Task<bool> MainSkillExistsAsync(int mainSkillId, CancellationToken ct = default);
         Task<bool> SubSkillsExistForMainSkillAsync(int mainSkillId, IEnumerable<int> subSkillIds, CancellationToken ct = default);

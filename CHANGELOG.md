@@ -10,3 +10,11 @@
 - Consolidated `LanguageIds` processing to use LINQ `Distinct()` locally and bulk EF methods (`AddRangeAsync`, `ExecuteDeleteAsync`).
 - Optimized `UserSkill` insertions to collect skills in a list and insert them in bulk, eliminating repetitive `foreach` loops.
 - Updated `UserRepository` to leverage `IReadOnlyCollection<int>` for better query performance and memory footprint.
+
+## [v1.1.2] - 2026-07-06
+
+### Added
+- Examples for credit history endpoint return in swagger
+
+### Changed
+- Updated `api/users` to get all users and enable filters so now you can search users with name, skills, language, rating
