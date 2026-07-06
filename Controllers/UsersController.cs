@@ -320,6 +320,7 @@ namespace SkillifyAPI.Controllers
         /// <response code="400">Invalid pagination parameters.</response>
         /// <response code="500">An unexpected internal server error occurred.</response>
         [HttpGet]
+        [Authorize]
         [SwaggerOperation(
             Summary = "Get all users (paginated and filtered)",
             Description = "Retrieves a paginated list of registered users, with optional filtering."
