@@ -1,9 +1,9 @@
-﻿using SkillifyAPI.Models;
+using SkillifyAPI.Models;
 
 namespace SkillifyAPI.Repositories.CreditTransactionRepository
 {
     public interface ICreditTransactionRepository
     {
-        Task<List<CreditTransaction>> GetUserTransactionsAsync(int userId);
+        Task<(List<CreditTransaction> Transactions, int CurrentBalance)> GetUserTransactionsAsync(int userId);
     }
 }

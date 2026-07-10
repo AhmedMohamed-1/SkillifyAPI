@@ -118,7 +118,7 @@ namespace SkillifyAPI.Services.UserService
             await _repo.SaveChangesAsync(ct);
 
             _logger.LogInformation("auth.refresh_succeeded {Service} {UserId}", nameof(UserService), user.Id);
-            return BuildAuthResponse(_jwt.GenerateAccessToken(user, newRefresh.ToString()!), newRefresh);
+            return BuildAuthResponse(_jwt.GenerateAccessToken(user, newRefresh.ToString()!), newRefresh, user.ProfileCompleted);
         }
 
         public async Task RevokeAsync(string refreshToken, string? reason = null, CancellationToken ct = default)
@@ -283,10 +283,10 @@ namespace SkillifyAPI.Services.UserService
             await _repo.SaveChangesAsync(ct);
 
             _logger.LogInformation("auth.login_succeeded {Service} {UserId}", nameof(UserService), user.Id);
-            return BuildAuthResponse(_jwt.GenerateAccessToken(user, refreshToken.Token), refreshToken);
+            return BuildAuthResponse(_jwt.GenerateAccessToken(user, refreshToken.Token), refreshToken, user.ProfileCompleted);
         }
 
-        private AuthResponseDto BuildAuthResponse(string accessToken, RefreshToken refreshToken)
+        private AuthResponseDto BuildAuthResponse(string accessToken, RefreshToken refreshToken, bool profileCompleted)
         {
             var accessMinutes = int.Parse(_cfg["Jwt:AccessTokenExpirationMinutes"] ?? "15");
             return new AuthResponseDto
@@ -295,7 +295,8 @@ namespace SkillifyAPI.Services.UserService
                 RefreshToken = refreshToken.Token,
                 AccessTokenExpiresInSeconds = accessMinutes * 60,
                 RefreshTokenExpiresAt = refreshToken.ExpiresAt,
-                AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(accessMinutes)
+                AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(accessMinutes),
+                profileCompleted = profileCompleted
             };
         }
     }

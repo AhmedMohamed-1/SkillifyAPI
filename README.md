@@ -66,8 +66,8 @@ This is not a CRUD tutorial — it models **real business logic**:
 - Register / login with hashed passwords (ASP.NET Identity `PasswordHasher`)
 - JWT access token (15 min) + refresh token (30 days) with rotation
 - Logout (single device) and revoke (all devices)
-- Profile completion with skill selection, languages, bio, and Cloudinary photo upload
-- Paginated public user directory
+- Profile completion with multiple needed skills selection, language catalog IDs selection, bio, and Cloudinary photo upload
+- Paginated and filtered user directory (filter by name, main skill, minimum rating, spoken language; requires authentication)
 
 ### Sessions & Video
 - Request help or offer help (two distinct credit flows)
@@ -78,7 +78,7 @@ This is not a CRUD tutorial — it models **real business logic**:
 ### Credits & Economy
 - Starting balance of 100 credits for new users
 - Escrow system — credits locked until session completes or is cancelled
-- Full transaction history (`EscrowHold`, `EscrowRelease`, `Refund`, `GiftCredit`)
+- Full transaction history (`EscrowHold`, `EscrowRelease`, `Refund`, `GiftCredit`) returning transaction history and user's current credit balance
 - Daily gift job for low-balance users (random 5–100 credits, once per 30 days)
 
 ### Ratings & Reviews
@@ -297,11 +297,11 @@ All settings live in `appsettings.json` (override with User Secrets or environme
 
 | Controller | Base Route | Description |
 |------------|-----------|-------------|
-| `UsersController` | `/api/Users` | Auth, profile, user listing |
+| `UsersController` | `/api/Users` | Auth, profile, filtered user directory |
 | `SessionsController` | `/api/Sessions` | Session lifecycle + Zego token |
 | `RatingsController` | `/api/Ratings` | Submit and browse reviews |
 | `NotificationsController` | `/api/Notifications` | In-app notifications + FCM devices |
-| `CreditTransactionsController` | `/api/CreditTransactions` | Credit ledger history |
+| `CreditTransactionsController` | `/api/CreditTransactions` | Credit ledger history (includes current balance) |
 | `MainSkillsController` | `/api/MainSkills` | Skill catalog |
 | `SubSkillsController` | `/api/SubSkills` | Sub-skill catalog |
 | `LanguagesController` | `/api/Languages` | Language catalog |

@@ -1,6 +1,6 @@
 # SkillifyAPI — Comprehensive QA & Software Testing Guide
 
-**Version:** 1.3  
+**Version:** 1.5  
 **Prepared For:** QA / Software Testing Team  
 **Project:** SkillifyAPI — Skill-exchange platform where users request and offer help sessions.  
 **Technology:** ASP.NET Core Web API (.NET 9), Entity Framework Core, FluentValidation, JWT Auth, Hangfire, Cloudinary, ZegoCloud, Firebase Cloud Messaging (FCM)
@@ -22,11 +22,14 @@
 11. [Detailed Test Case Scenarios](#11-detailed-test-case-scenarios)
 12. [Edge Cases & Negative Test Cases](#12-edge-cases--negative-test-cases)
 
-### Document Change Log (v1.3)
+### Document Change Log (v1.5)
 | Area | What Changed |
 |------|--------------|
-| **Notifications** | Full in-app notification system + Firebase FCM push + device token registration |
-| **Credit Transactions** | `GET /api/CreditTransactions/history` + `Description` field on ledger |
+| **Profile Completion** | Payload updated to accept multiple `NeededSkills` and `LanguageIds` list. Bulk operations added for performance. |
+| **Users Query** | `GET /api/Users` is now **Protected** (`[Authorize]` required) and supports filters: `name`, `skillId`, `minRating`, `langId`. |
+| **Credit Transactions** | `GET /api/CreditTransactions/history` response changed to a `CreditTransactionHistoryDto` containing `history` list and `currentBalance`. (v1.4) |
+| **Notifications** | Full in-app notification system + Firebase FCM push + device token registration (v1.3) |
+| **Credit Transactions (v1.3)** | `GET /api/CreditTransactions/history` + `Description` field on ledger |
 | **CreditService** | Centralized credit operations with automatic notifications on every credit change |
 | **Daily Gift Job** | Hangfire recurring job gifts 5–100 credits to low-balance users daily |
 | **Ratings API** | Full CRUD-read + submit endpoints (`/api/Ratings`) |
@@ -85,8 +88,8 @@
 ### Protected vs. Public Endpoints
 | Visibility | Endpoints |
 |---|---|
-| **Public (No Auth)** | `POST /register`, `POST /login`, `POST /refresh`, `GET /api/MainSkills/*`, `GET /api/SubSkills/*`, `GET /api/Languages/*`, `GET /api/Badges`, `GET /api/Users`, `GET /api/Ratings/user/{userId}` |
-| **Protected (`[Authorize]`)** | `POST /revoke`, `POST /logout`, `GET /api/Users/me`, `PUT /api/Users/me/profile`, All `/api/Sessions/*`, All `/api/Notifications/*`, `GET /api/CreditTransactions/history`, All other `/api/Ratings/*` |
+| **Public (No Auth)** | `POST /register`, `POST /login`, `POST /refresh`, `GET /api/MainSkills/*`, `GET /api/SubSkills/*`, `GET /api/Languages/*`, `GET /api/Badges`, `GET /api/Ratings/user/{userId}` |
+| **Protected (`[Authorize]`)** | `POST /revoke`, `POST /logout`, `GET /api/Users/me`, `PUT /api/Users/me/profile`, `GET /api/Users`, All `/api/Sessions/*`, All `/api/Notifications/*`, `GET /api/CreditTransactions/history`, All other `/api/Ratings/*` |
 
 ### Email Normalization
 - Emails are normalized (lowercased and trimmed) before storage and lookup. This means `User@Example.COM` and `user@example.com` are treated as the same account.
@@ -110,7 +113,9 @@
 | `Bio` | string | Yes | null | Max 500 chars |
 | `JobTitle` | string | Yes | null | Max 100 chars |
 | `CreditBalance` | int | No | **100** | — |
-| `ProfileCompleted` | bool | No | **false** | — |
+| `Profile
+
+` | bool | No | **false** | — |
 | `LastGiftCreditAt` | DateTime? | Yes | null | Set when user receives a daily gift credit |
 | `CreatedAt` | DateTime | No | — | — |
 | `UpdatedAt` | DateTime | No | — | — |
@@ -297,11 +302,13 @@ Pending → Accepted → Active → Completed
 | `Bio` | Optional, MaxLength: **500** |
 | `JobTitle` | Optional, MaxLength: **100** |
 | `OfferedDescription` | Optional, MaxLength: **1000** |
-| `NeededDescription` | Optional, MaxLength: **1000** |
 | `OfferedMainSkill` | Required, must be an integer **> 0**, must **exist** in the DB |
 | `OfferedSubSkills` | Required, array must **not be empty**, all sub-skill IDs must **belong to** `OfferedMainSkill` |
-| `NeededMainSkill` | Required, must be an integer **> 0**, must **exist** in the DB |
-| `NeededSubSkills` | Required, array must **not be empty**, all sub-skill IDs must **belong to** `NeededMainSkill` |
+| `NeededSkills` | Required, array must **not be empty**, duplicate main skills are not allowed |
+| `NeededSkills[].MainSkillId` | Required, must be an integer **> 0**, must **exist** in the DB |
+| `NeededSkills[].SubSkillIds` | Required, array must **not be empty**, all sub-skill IDs must **belong to** `MainSkillId` |
+| `NeededSkills[].Description` | Optional, MaxLength: **1000** |
+| `LanguageIds` | Optional, list of language IDs, all must **exist** in the DB |
 | `ProfilePicture` | Optional, `multipart/form-data` file upload, uploaded to Cloudinary |
 
 > **Important:** When profile is updated, **all previous UserSkills for that user are deleted and replaced** with the new selection. The `ProfileCompleted` flag is set to `true` after the first successful update.
@@ -342,12 +349,16 @@ Pending → Accepted → Active → Completed
 | Session Status | Must be `Pending`, `Accepted`, or `ReOffered` | `"You can only reschedule pending, accepted, or re-offered sessions."` |
 | User | Must be a participant (Requester or Helper) | `"You are not authorized to reschedule this session."` |
 
-### 4.8 Pagination (`GET /api/Users`)
+### 4.8 Pagination & Filtering (`GET /api/Users`)
 
 | Parameter | Default | Rule |
 |-----------|---------|------|
 | `page` | 1 | Must be **>= 1** |
 | `pageSize` | 20 | Must be **>= 1** |
+| `name` | null | Optional string to filter by user's full name (contains search) |
+| `skillId` | null | Optional main skill ID filter (user must have selected this skill) |
+| `minRating` | null | Optional decimal to filter users with average rating >= this value |
+| `langId` | null | Optional language ID filter (user must know this language) |
 
 ### 4.9 Submit Rating (`POST /api/Ratings`)
 
@@ -408,7 +419,7 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
 | `POST` | `/api/Users/logout` | ✅ Bearer | Revoke current-session refresh token only |
 | `GET` | `/api/Users/me` | ✅ Bearer | Get authenticated user's full profile |
 | `PUT` | `/api/Users/me/profile` | ✅ Bearer | Update profile (multipart/form-data) |
-| `GET` | `/api/Users?page=1&pageSize=20` | ❌ Public | Get paginated list of all users |
+| `GET` | `/api/Users` | ✅ Bearer | Get paginated list of users (filtered by name, skillId, minRating, langId) |
 
 ### 5.2 Sessions Controller (`/api/Sessions`)
 
@@ -780,15 +791,20 @@ The system uses **Hangfire** for time-based session lifecycle automation. Jobs h
 }
 ```
 
-### 9.8 Credit Transaction (`CreditTransactionDto`)
+### 9.8 Credit Transaction History (`CreditTransactionHistoryDto`)
 ```json
 {
-  "id": 55,
-  "userId": 1,
-  "amount": 30,
-  "type": "EscrowRelease",
-  "description": null,
-  "createdAt": "2026-06-15T15:30:00Z"
+  "history": [
+    {
+      "id": 55,
+      "userId": 1,
+      "amount": 30,
+      "type": "EscrowRelease",
+      "description": null,
+      "createdAt": "2026-06-15T15:30:00Z"
+    }
+  ],
+  "currentBalance": 100
 }
 ```
 
@@ -1082,7 +1098,7 @@ All error responses return a JSON body in this format:
 
 ### TC-CREDIT-001: Get Credit History
 - **Pre-condition:** User has completed at least one session.
-- **Expected:** `200 OK` with list of `CreditTransactionDto` including `EscrowHold`, `EscrowRelease`, or `Refund` entries.
+- **Expected:** `200 OK` with `CreditTransactionHistoryDto` containing `history` array (including `EscrowHold`, `EscrowRelease`, or `Refund` entries) and user's `currentBalance`.
 
 ### TC-CREDIT-002: Credit History Requires Auth
 - **Action:** Call `GET /api/CreditTransactions/history` without token.

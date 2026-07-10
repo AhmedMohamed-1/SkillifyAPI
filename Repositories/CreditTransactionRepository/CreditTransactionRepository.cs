@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SkillifyAPI.Data;
 using SkillifyAPI.Models;
 
@@ -13,12 +13,19 @@ namespace SkillifyAPI.Repositories.CreditTransactionRepository
             _context = context;
         }
 
-        public async Task<List<CreditTransaction>> GetUserTransactionsAsync(int userId)
+        public async Task<(List<CreditTransaction> Transactions, int CurrentBalance)> GetUserTransactionsAsync(int userId)
         {
-            return await _context.CreditTransactions
+            var transactions = await _context.CreditTransactions
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
+
+            var currentBalance = await _context.Users
+                .Where(x => x.Id == userId)
+                .Select(x => x.CreditBalance)
+                .FirstOrDefaultAsync();
+
+            return (transactions, currentBalance);
         }
     }
 }

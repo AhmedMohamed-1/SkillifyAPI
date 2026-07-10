@@ -1,9 +1,9 @@
-﻿using SkillifyAPI.DTOs.CreditTransaction;
+using SkillifyAPI.DTOs.CreditTransaction;
 
 namespace SkillifyAPI.Services.CreditTransactionService
 {
     public interface ICreditTransactionService
     {
-        Task<List<CreditTransactionDto>> GetUserHistoryAsync(int userId);
+        Task<CreditTransactionHistoryDto> GetUserHistoryAsync(int userId);
     }
 }

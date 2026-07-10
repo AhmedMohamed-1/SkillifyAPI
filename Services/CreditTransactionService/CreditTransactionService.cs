@@ -1,4 +1,4 @@
-﻿using SkillifyAPI.DTOs.CreditTransaction;
+using SkillifyAPI.DTOs.CreditTransaction;
 using SkillifyAPI.Repositories.CreditTransactionRepository;
 
 namespace SkillifyAPI.Services.CreditTransactionService
@@ -12,11 +12,11 @@ namespace SkillifyAPI.Services.CreditTransactionService
             _repo = repo;
         }
 
-        public async Task<List<CreditTransactionDto>> GetUserHistoryAsync(int userId)
+        public async Task<CreditTransactionHistoryDto> GetUserHistoryAsync(int userId)
         {
-            var data = await _repo.GetUserTransactionsAsync(userId);
+            var (transactions, currentBalance) = await _repo.GetUserTransactionsAsync(userId);
 
-            return data.Select(x => new CreditTransactionDto
+            var history = transactions.Select(x => new CreditTransactionDto
             {
                 Id = x.Id,
                 UserId = x.UserId,
@@ -25,6 +25,12 @@ namespace SkillifyAPI.Services.CreditTransactionService
                 Description = x.Description,
                 CreatedAt = x.CreatedAt
             }).ToList();
+
+            return new CreditTransactionHistoryDto
+            {
+                History = history,
+                CurrentBalance = currentBalance
+            };
         }
     }    
 }

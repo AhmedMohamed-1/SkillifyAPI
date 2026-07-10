@@ -25,5 +25,9 @@
         /// UTC date and time when the access token expires.
         /// </summary>
         public DateTime? AccessTokenExpiresAt { get; set; }
+        /// <summary>
+        /// profile completion status of the user
+        ///</summary>
+        public bool profileCompleted { get; set; }
     }
 }

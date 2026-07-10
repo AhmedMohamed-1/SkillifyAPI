@@ -16,7 +16,7 @@ namespace SkillifyAPI.Controllers
         {
             _service = service;
         }
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(List<CreditTransactionDto>))]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CreditTransactionHistoryDto))]
         [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
         [HttpGet("history")]
