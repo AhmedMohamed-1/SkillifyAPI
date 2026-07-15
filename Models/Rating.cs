@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SkillifyAPI.Models
 {
@@ -8,6 +9,8 @@ namespace SkillifyAPI.Models
         public int SessionId { get; set; }
         public int ReviewerId { get; set; }
         public int RevieweeId { get; set; }
+
+        [Range(1, 5)]
         public decimal Score { get; set; } // 1.0 – 5.0
         public string? ReviewText { get; set; }
         public DateTime CreatedAt { get; set; }

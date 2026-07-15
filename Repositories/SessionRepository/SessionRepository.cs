@@ -66,6 +66,16 @@ namespace SkillifyAPI.Repositories.SessionRepository
             await _context.EscrowHolds.AddAsync(escrowHold, ct);
         }
 
+        public async Task<Session?> GetByZegoRoomIdAsync(string zegoRoomId, CancellationToken ct = default)
+        {
+            return await _context.Sessions
+                .Include(s => s.Requester)
+                .Include(s => s.Helper)
+                .Include(s => s.EscrowHold)
+                .Include(s => s.SessionEvents)
+                .FirstOrDefaultAsync(s => s.ZegoRoomId == zegoRoomId, ct);
+        }
+
 
         public async Task SaveChangesAsync(CancellationToken ct = default)
         {

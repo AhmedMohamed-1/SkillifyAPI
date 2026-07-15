@@ -90,6 +90,7 @@ namespace SkillifyAPI.Helper
         {
             var offered = user.Skills.FirstOrDefault(s => s.SkillType == SkillType.Offered);
             var neededSkills = user.Skills.Where(s => s.SkillType == SkillType.Needed).ToList();
+            var reviews = user.ReceivedRatings?.ToList() ?? [];
 
             return new UsersListDTO
             {
@@ -112,7 +113,10 @@ namespace SkillifyAPI.Helper
                         Name = s.Category.Name,
                         Slug = s.Category.Slug,
                         IconKey = s.Category.IconKey
-                    }).ToList()
+                    }).ToList(),
+                OverallRatingScore = reviews.Count > 0
+                    ? Math.Round(reviews.Average(r => r.Score), 1)
+                    : null
             };
         }
     }

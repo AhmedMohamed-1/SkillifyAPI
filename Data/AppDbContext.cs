@@ -138,9 +138,9 @@ namespace SkillifyAPI.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             b.Entity<Session>()
-                .HasOne(s => s.Rating)
+                .HasMany(s => s.Ratings)
                 .WithOne(r => r.Session)
-                .HasForeignKey<Rating>(r => r.SessionId)
+                .HasForeignKey(r => r.SessionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             b.Entity<Session>()
@@ -187,7 +187,7 @@ namespace SkillifyAPI.Data
 
             // ── Rating (one per session; reviewer + reviewee) ─────────────────
             b.Entity<Rating>()
-                .HasIndex(r => r.SessionId)
+                .HasIndex(r => new { r.SessionId, r.ReviewerId })
                 .IsUnique();
 
             b.Entity<Rating>()

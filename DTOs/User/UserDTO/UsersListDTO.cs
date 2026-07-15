@@ -1,4 +1,4 @@
-﻿using SkillifyAPI.DTOs.Skill.SkillDTO;
+using SkillifyAPI.DTOs.Skill.SkillDTO;
 
 namespace SkillifyAPI.DTOs.User.UserDTO
 {
@@ -13,5 +13,6 @@ namespace SkillifyAPI.DTOs.User.UserDTO
         public string? ProfilePictureUrl { get; set; }
         public GetMainSkillDTO? OfferedMainSkill { get; set; }
         public ICollection<GetMainSkillDTO> NeededMainSkills { get; set; } = [];
+        public decimal? OverallRatingScore { get; set; }
     }
 }

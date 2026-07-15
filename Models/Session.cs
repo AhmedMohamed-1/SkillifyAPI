@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SkillifyAPI.Models
 {
@@ -54,6 +54,6 @@ namespace SkillifyAPI.Models
         public ICollection<SessionEvent> SessionEvents { get; set; } = [];
         public ICollection<CreditTransaction> CreditTransactions { get; set; } = [];
         public EscrowHold? EscrowHold { get; set; }
-        public Rating? Rating { get; set; }
+        public ICollection<Rating> Ratings { get; set; } = [];
     }
 }

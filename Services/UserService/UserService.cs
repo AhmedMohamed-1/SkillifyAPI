@@ -186,22 +186,6 @@ namespace SkillifyAPI.Services.UserService
                 }
             }
 
-            // ?? Handle Profile Picture ???????????????????????????????
-            if (dto.ProfilePicture is not null)
-            {
-                // Delete old picture from Cloudinary if exists
-                if (!string.IsNullOrEmpty(user.ProfilePicturePublicId))
-                    await _cloudinaryService.DeleteImageAsync(user.ProfilePicturePublicId);
-
-                // Upload new picture
-                var uploaded = await _cloudinaryService.UploadImageAsync(
-                    dto.ProfilePicture,
-                    folder: "SkillifyAPI/avatars");
-
-                user.ProfilePictureUrl = uploaded.SecureUrl;
-                user.ProfilePicturePublicId = uploaded.PublicId;
-            }
-
             user.Bio = dto.Bio;
             user.JobTitle = dto.JobTitle;
             user.ProfileCompleted = true;
@@ -234,6 +218,29 @@ namespace SkillifyAPI.Services.UserService
                     }),
                     ct);
             }
+
+            await _repo.SaveChangesAsync(ct);
+
+            return await GetProfileAsync(userId, ct);
+        }
+
+        public async Task<GetUserProfileData> UpdateProfilePictureAsync(int userId, IFormFile profilePicture, CancellationToken ct = default)
+        {
+            var user = await _repo.GetUserByIdAsync(userId, ct)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            // Delete old picture from Cloudinary if exists
+            if (!string.IsNullOrEmpty(user.ProfilePicturePublicId))
+                await _cloudinaryService.DeleteImageAsync(user.ProfilePicturePublicId);
+
+            // Upload new picture
+            var uploaded = await _cloudinaryService.UploadImageAsync(
+                profilePicture,
+                folder: "SkillifyAPI/avatars");
+
+            user.ProfilePictureUrl = uploaded.SecureUrl;
+            user.ProfilePicturePublicId = uploaded.PublicId;
+            user.UpdatedAt = DateTime.UtcNow;
 
             await _repo.SaveChangesAsync(ct);
 

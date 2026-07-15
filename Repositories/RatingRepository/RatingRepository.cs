@@ -62,6 +62,29 @@ namespace SkillifyAPI.Repositories.RatingRepository
                 .ToListAsync(ct);
         }
 
+
+
+        public async Task<bool> HasUserRatedSessionAsync(int userId, int sessionId, CancellationToken ct = default) 
+        {
+            return await _context.Ratings.AnyAsync(r => r.SessionId == sessionId && r.ReviewerId == userId , ct);
+        }
+
+        public async Task<Rating?> GetUserRatingForSessionAsync(int userId, int sessionId, CancellationToken ct = default)
+        {
+            return await _context.Ratings
+                .FirstOrDefaultAsync(r => r.SessionId == sessionId && r.ReviewerId == userId, ct);
+        }
+
+        public async Task<Dictionary<int, Rating>> GetUserRatingsForSessionsAsync(int userId, IEnumerable<int> sessionIds, CancellationToken ct = default)
+        {
+            return await _context.Ratings
+                .Where(r => r.ReviewerId == userId && sessionIds.Contains(r.SessionId))
+                .ToDictionaryAsync(r => r.SessionId, r => r, ct);
+        }
+
+
+
+
         public async Task SaveChangesAsync(CancellationToken ct = default)
         {
             await _context.SaveChangesAsync(ct);

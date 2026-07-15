@@ -264,18 +264,17 @@ namespace SkillifyAPI.Controllers
         /// <response code="404">User profile not found.</response>
         /// <response code="500">An unexpected internal server error occurred.</response>
         [Authorize]
-        [Consumes("multipart/form-data")]
         [HttpPut("me/profile")]
         [SwaggerOperation(
             Summary = "Complete or update user profile",
-            Description = "Allows an authenticated user to complete or update their profile by setting name, bio, profile picture, main skill, and sub-skills."
+            Description = "Allows an authenticated user to complete or update their profile by setting bio, job title, main skill, sub-skills, and languages."
         )]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GetUserProfileData))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(object))]
         [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
-        public async Task<ActionResult<GetUserProfileData>> CompleteProfile([FromForm] CompleteProfileDTO dto, CancellationToken ct)
+        public async Task<ActionResult<GetUserProfileData>> CompleteProfile([FromBody] CompleteProfileDTO dto, CancellationToken ct)
         {
             try
             {
@@ -301,7 +300,51 @@ namespace SkillifyAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred while completing profile." + ex.Message});
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred while completing profile." + ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Updates the profile picture of the authenticated user.
+        /// </summary>
+        /// <param name="profilePicture">The new profile picture file.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The updated user profile data.</returns>
+        /// <response code="200">Profile picture updated successfully.</response>
+        /// <response code="400">No file provided or invalid file.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="404">User not found.</response>
+        /// <response code="500">An unexpected internal server error occurred.</response>
+        [Authorize]
+        [Consumes("multipart/form-data")]
+        [HttpPut("me/profile-picture")]
+        [SwaggerOperation(
+            Summary = "Update profile picture",
+            Description = "Uploads a new profile picture for the authenticated user. Replaces the existing one on Cloudinary."
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GetUserProfileData))]
+        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(object))]
+        public async Task<ActionResult<GetUserProfileData>> UpdateProfilePicture(IFormFile profilePicture, CancellationToken ct)
+        {
+            if (profilePicture == null || profilePicture.Length == 0)
+                return BadRequest(new { message = "A valid profile picture file is required." });
+
+            try
+            {
+                var userId = GetCurrentUserId();
+                var updatedProfile = await _userService.UpdateProfilePictureAsync(userId, profilePicture, ct);
+                return Ok(updatedProfile);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "An unexpected error occurred while updating profile picture." + ex.Message });
             }
         }
 

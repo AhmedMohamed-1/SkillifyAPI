@@ -11,6 +11,7 @@ namespace SkillifyAPI.Repositories.SessionRepository
         Task<IEnumerable<Session>> GetReceivedSessionsAsync(int helperId, CancellationToken ct = default);
         Task AddEventAsync(SessionEvent sessionEvent, CancellationToken ct = default);
         Task AddEscrowHoldAsync(EscrowHold escrowHold, CancellationToken ct = default);
+        Task<Session?> GetByZegoRoomIdAsync(string zegoRoomId, CancellationToken ct = default);
         Task SaveChangesAsync(CancellationToken ct = default);
     }
 }

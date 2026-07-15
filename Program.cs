@@ -33,6 +33,7 @@ using SkillifyAPI.Services.SessionService;
 using SkillifyAPI.Services.SubSkillService;
 using SkillifyAPI.Services.UserService;
 using SkillifyAPI.Validations.UserValidation;
+using SkillifyAPI.Validations.SessionValidation;
 using SkillifyAPI.ZegoService;
 using Swashbuckle.AspNetCore.Filters;
 using System.Text;
@@ -185,6 +186,7 @@ builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 builder.Services.AddScoped<IZegoTokenService, ZegoTokenService>();
 builder.Services.AddScoped<IZegoRoomService, ZegoRoomService>();
 builder.Services.AddScoped<ISessionMeetingService, SessionMeetingService>();
+builder.Services.AddScoped<SessionValidator>();
 builder.Services.AddScoped<ICreditTransactionRepository, CreditTransactionRepository>();
 builder.Services.AddScoped<ICreditTransactionService, CreditTransactionService>();
 

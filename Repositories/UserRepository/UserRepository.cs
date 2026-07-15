@@ -61,6 +61,7 @@ namespace SkillifyAPI.Repositories.UserRepository
             var totalCount = await query.CountAsync(ct);
             var users = await query
                 .Include(u => u.Skills).ThenInclude(s => s.Category)
+                .Include(u => u.ReceivedRatings)
                 .OrderBy(u => u.FullName)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)

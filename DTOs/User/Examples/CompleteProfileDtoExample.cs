@@ -12,6 +12,7 @@ namespace SkillifyAPI.DTOs.User.Examples
             {
                 Bio = "Junior Backend Developer specialized in .NET",
                 JobTitle = "Backend Developer",
+                LanguageIds = new List<int> { 7 , 42},
                 OfferedMainSkill = 1,
                 OfferedSubSkills = new [] { 1, 7 },
                 OfferedDescription = "I can help with ASP.NET Core and APIs.",

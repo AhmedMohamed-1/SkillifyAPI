@@ -37,8 +37,8 @@ namespace SkillifyAPI.Services.RatingService
             if (session.Status != SessionStatus.Completed)
                 throw new InvalidOperationException("You can only rate a completed session.");
 
-            if (await _ratingRepository.ExistsForSessionAsync(dto.SessionId, ct))
-                throw new InvalidOperationException("This session has already been rated.");
+            if (await _ratingRepository.HasUserRatedSessionAsync(reviewerId, dto.SessionId, ct))
+                throw new InvalidOperationException("You have already rated this session.");
 
             var revieweeId = session.RequesterId == reviewerId
                 ? session.HelperId

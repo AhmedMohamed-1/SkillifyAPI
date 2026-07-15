@@ -4,8 +4,10 @@ using SkillifyAPI.ZegoService;
 using SkillifyAPI.Models;
 using SkillifyAPI.Repositories.SessionRepository;
 using SkillifyAPI.Repositories.UserRepository;
-
 using SkillifyAPI.Services.CreditService;
+using SkillifyAPI.Validations.SessionValidation;
+using FirebaseAdmin.Auth;
+using SkillifyAPI.Repositories.RatingRepository;
 
 namespace SkillifyAPI.Services.SessionService
 {
@@ -15,17 +17,23 @@ namespace SkillifyAPI.Services.SessionService
         private readonly IUserRepository _userRepository;
         private readonly IZegoRoomService _zegoRoom;
         private readonly ICreditService _creditService;
+        private readonly IRatingRepository _ratingRepository;
+        private readonly SessionValidator _validator;
 
         public SessionMeetingService(
             ISessionRepository sessionRepository,
             IUserRepository userRepository,
             IZegoRoomService zegoRoom,
-            ICreditService creditService)
+            ICreditService creditService,
+            IRatingRepository ratingRepository,
+            SessionValidator validator)
         {
             _sessionRepository = sessionRepository;
             _userRepository = userRepository;
             _zegoRoom = zegoRoom;
             _creditService = creditService;
+            _ratingRepository = ratingRepository;
+            _validator = validator;
         }
 
         // Called when Helper accepts the session request
@@ -101,8 +109,24 @@ namespace SkillifyAPI.Services.SessionService
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId);
             if (session == null) return;
 
-            if (session.Status is SessionStatus.Completed or SessionStatus.Cancelled or SessionStatus.Declined)
+            if (session.Status is SessionStatus.Completed
+                                or SessionStatus.Cancelled
+                                or SessionStatus.Declined
+                                or SessionStatus.Expired)
                 return;
+
+            // If escrow was already released by the webhook (helper joined on time),
+            // the session is already Completed — just close the Zego room and return.
+            if (session.EscrowHold?.Status == EscrowStatus.Released)
+            {
+                if (!string.IsNullOrEmpty(session.ZegoRoomId))
+                    await _zegoRoom.CloseRoomAsync(session.ZegoRoomId);
+
+                session.Status = SessionStatus.Completed;
+                session.CompletedAt = DateTime.UtcNow;
+                await _sessionRepository.SaveChangesAsync();
+                return;
+            }
 
             if (session.Status == SessionStatus.Accepted)
             {
@@ -123,31 +147,44 @@ namespace SkillifyAPI.Services.SessionService
             if (!string.IsNullOrEmpty(session.ZegoRoomId))
                 await _zegoRoom.CloseRoomAsync(session.ZegoRoomId);
 
-            session.Status = SessionStatus.Completed;
-            session.CompletedAt = DateTime.UtcNow;
-
-            await _sessionRepository.AddEventAsync(new SessionEvent
+            // Helper never joined — expire the session and refund the payer
+            if (session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held)
             {
-                SessionId = sessionId,
-                UserId = session.HelperId,
-                Type = SessionStatus.Completed,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            if (session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held && session.Status == SessionStatus.Completed)
-            {
-                session.EscrowHold.Status = EscrowStatus.Released;
+                session.EscrowHold.Status = EscrowStatus.Refunded;
                 session.EscrowHold.ReleasedAt = DateTime.UtcNow;
 
-                var helper = await _userRepository.GetUserByIdAsync(session.HelperId);
-                if (helper != null)
+                session.Status = SessionStatus.Expired;
+                session.CompletedAt = DateTime.UtcNow;
+
+                await _sessionRepository.AddEventAsync(new SessionEvent
                 {
-                    await _creditService.AddCreditsAsync(
-                        session.HelperId,
-                        session.EscrowHold.CreditsHeld,
-                        TransactionType.EscrowRelease,
-                        session.Id);
-                }
+                    SessionId = sessionId,
+                    UserId = session.HelperId,
+                    Type = SessionStatus.Expired,
+                    CreatedAt = DateTime.UtcNow,
+                    Comment = "Helper did not join the session. Credits refunded to payer."
+                });
+
+                // Refund goes back to whoever paid (EscrowHold.RequesterId = the payer)
+                await _creditService.AddCreditsAsync(
+                    session.EscrowHold.RequesterId,
+                    session.EscrowHold.CreditsHeld,
+                    TransactionType.Refund,
+                    session.Id);
+            }
+            else
+            {
+                // Escrow already settled — just mark completed
+                session.Status = SessionStatus.Completed;
+                session.CompletedAt = DateTime.UtcNow;
+
+                await _sessionRepository.AddEventAsync(new SessionEvent
+                {
+                    SessionId = sessionId,
+                    UserId = session.HelperId,
+                    Type = SessionStatus.Completed,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
             await _sessionRepository.SaveChangesAsync();
@@ -163,45 +200,112 @@ namespace SkillifyAPI.Services.SessionService
                 BackgroundJob.Delete(session.HangfireCloseJobId);
         }
 
+        // ── Zego Webhook Handler ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Called by the ZegoWebhookController for every room-user event.
+        ///
+        /// Business rules:
+        ///   • "room_user_join" AND the joining user is the Helper
+        ///     AND the session is still Active/Accepted (i.e. escrow not yet released)
+        ///     AND the helper joins before the halfway point of the session
+        ///     → release escrow immediately: transfer credits to the helper.
+        ///
+        ///   • Any other event is silently ignored (requester joining, leave events, etc.).
+        ///
+        /// The "helper didn't join" path is handled by CloseSession (Hangfire job):
+        /// when it fires and escrow is still Held → Expired + refund.
+        /// </summary>
+        public async Task HandleWebhookAsync(ZegoWebhookDto dto, CancellationToken ct = default)
+        {
+            // We only care about join events
+            if (!string.Equals(dto.Event, "room_user_join", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (string.IsNullOrWhiteSpace(dto.RoomId))
+                return;
+
+            // Look up the session by its Zego room ID
+            var session = await _sessionRepository.GetByZegoRoomIdAsync(dto.RoomId, ct);
+            if (session == null)
+                return;
+
+            // Only process Active or Accepted sessions that still have an unreleased escrow
+            if (session.Status is not (SessionStatus.Active or SessionStatus.Accepted))
+                return;
+
+            if (session.EscrowHold == null || session.EscrowHold.Status != EscrowStatus.Held)
+                return;
+
+            // Parse the joining user's ID from the Zego account string
+            if (!int.TryParse(dto.UserAccount, out int joiningUserId))
+                return;
+
+            // The credit transfer only triggers when the HELPER joins
+            if (joiningUserId != session.HelperId)
+                return;
+
+            // Guard: helper must join before the halfway point of the session
+            var sessionStart = EnsureUtc(session.ScheduledAt);
+            var halfwayPoint = sessionStart.AddMinutes(GetDurationMinutes(session) / 2.0);
+            var now = DateTime.UtcNow;
+
+            if (now > halfwayPoint)
+                // Helper joined too late — CloseSession will expire and refund
+                return;
+
+            // ── Release escrow → helper earns credits immediately ──────────────
+            session.EscrowHold.Status = EscrowStatus.Released;
+            session.EscrowHold.ReleasedAt = now;
+
+            await _sessionRepository.AddEventAsync(new SessionEvent
+            {
+                SessionId = session.Id,
+                UserId = session.HelperId,
+                Type = SessionStatus.Active,
+                CreatedAt = now,
+                Comment = "Helper joined the session. Credits transferred immediately."
+            }, ct);
+
+            // Transfer credits to the helper (regardless of who initiated the session)
+            await _creditService.AddCreditsAsync(
+                session.HelperId,
+                session.EscrowHold.CreditsHeld,
+                TransactionType.EscrowRelease,
+                session.Id,
+                ct);
+
+            await _sessionRepository.SaveChangesAsync(ct);
+        }
+
         // --- Session Lifecycle Methods ---
 
         public async Task<GetSessionDTO> RequestSessionAsync(int requesterId, RequestHelpDTO dto, CancellationToken ct = default)
         {
             var scheduledAt = EnsureUtc(dto.ScheduledAt);
-            if (scheduledAt <= DateTime.UtcNow)
-            {
-                throw new ArgumentException("Session schedule time must be in the future (UTC).");
-            }
+            int creditCost  = ValidateDuration(dto.DurationMinutes);
 
-            int creditCost = ValidateDuration(dto.DurationMinutes);
-
-            if (requesterId == dto.HelperId)
+            _validator.EnsureNotSelfRequest(requesterId, dto.HelperId);
+            _validator.EnsureScheduledAtIsFuture(new SessionValidationContext
             {
-                throw new ArgumentException("You cannot request a session with yourself.");
-            }
+                ProposedScheduledAt = scheduledAt
+            });
 
-            var helper = await _userRepository.GetUserByIdAsync(dto.HelperId, ct);
-            if (helper == null)
-            {
-                throw new KeyNotFoundException("The requested helper user does not exist.");
-            }
+            var helper = await _userRepository.GetUserByIdAsync(dto.HelperId, ct)
+                ?? throw new KeyNotFoundException("The requested helper user does not exist.");
 
-            var requester = await _userRepository.GetUserByIdAsync(requesterId, ct);
-            if (requester == null)
-            {
-                throw new KeyNotFoundException("Requester user not found.");
-            }
+            var requester = await _userRepository.GetUserByIdAsync(requesterId, ct)
+                ?? throw new KeyNotFoundException("Requester user not found.");
 
             var skillExists = await _userRepository.MainSkillExistsAsync(dto.MainSkillId, ct);
             if (!skillExists)
-            {
                 throw new KeyNotFoundException("The specified skill does not exist.");
-            }
 
-            if (requester.CreditBalance < creditCost)
+            _validator.EnsureSufficientCredits(new SessionValidationContext
             {
-                throw new InvalidOperationException($"Insufficient credits. Required: {creditCost}, Available: {requester.CreditBalance}.");
-            }
+                CreditCost              = creditCost,
+                RequesterCreditBalance  = requester.CreditBalance
+            });
 
             // Setup escrow immediately (deduction is handled below)
 
@@ -257,35 +361,23 @@ namespace SkillifyAPI.Services.SessionService
         public async Task<GetSessionDTO> OfferSessionAsync(int helperId, OfferHelpDTO dto, CancellationToken ct = default)
         {
             var scheduledAt = EnsureUtc(dto.ScheduledAt);
-            if (scheduledAt <= DateTime.UtcNow)
-            {
-                throw new ArgumentException("Session schedule time must be in the future (UTC).");
-            }
+            int creditCost  = ValidateDuration(dto.DurationMinutes);
 
-            int creditCost = ValidateDuration(dto.DurationMinutes);
-
-            if (helperId == dto.RequesterId)
+            _validator.EnsureNotSelfOffer(helperId, dto.RequesterId);
+            _validator.EnsureScheduledAtIsFuture(new SessionValidationContext
             {
-                throw new ArgumentException("You cannot offer a session to yourself.");
-            }
+                ProposedScheduledAt = scheduledAt
+            });
 
-            var requester = await _userRepository.GetUserByIdAsync(dto.RequesterId, ct);
-            if (requester == null)
-            {
-                throw new KeyNotFoundException("The requested recipient does not exist.");
-            }
+            var requester = await _userRepository.GetUserByIdAsync(dto.RequesterId, ct)
+                ?? throw new KeyNotFoundException("The requested recipient does not exist.");
 
-            var helper = await _userRepository.GetUserByIdAsync(helperId, ct);
-            if (helper == null)
-            {
-                throw new KeyNotFoundException("Helper user not found.");
-            }
+            var helper = await _userRepository.GetUserByIdAsync(helperId, ct)
+                ?? throw new KeyNotFoundException("Helper user not found.");
 
             var skillExists = await _userRepository.MainSkillExistsAsync(dto.MainSkillId, ct);
             if (!skillExists)
-            {
                 throw new KeyNotFoundException("The specified skill does not exist.");
-            }
 
             // Do NOT deduct credits yet. The requester is charged when they accept the offer.
             var session = new Session
@@ -325,49 +417,9 @@ namespace SkillifyAPI.Services.SessionService
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId, ct)
                 ?? throw new KeyNotFoundException("Session not found.");
 
-            if (session.Status != SessionStatus.Pending && session.Status != SessionStatus.ReOffered)
-            {
-                throw new InvalidOperationException("Only pending or re-offered sessions can be accepted.");
-            }
+            var ctx = new SessionValidationContext { Session = session, ActingUserId = userId };
 
-            if (session.Status == SessionStatus.Pending)
-            {
-                // Determine creator from navigation/events
-                // If EscrowHold is already set, this was a "Request Help" flow initiated by the Requester
-                bool isRequestHelpFlow = session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held;
-
-                if (isRequestHelpFlow)
-                {
-                    if (session.HelperId != userId)
-                    {
-                        throw new UnauthorizedAccessException("Only the helper can accept this session request.");
-                    }
-                }
-                else
-                {
-                    if (session.RequesterId != userId)
-                    {
-                        throw new UnauthorizedAccessException("Only the requester can accept this session offer.");
-                    }
-                }
-            }
-            else if (session.Status == SessionStatus.ReOffered)
-            {
-                // Find the user who rescheduled last
-                var lastEvent = session.SessionEvents
-                    .OrderByDescending(e => e.CreatedAt)
-                    .FirstOrDefault(e => e.Type == SessionStatus.ReOffered);
-
-                if (lastEvent != null && lastEvent.UserId == userId)
-                {
-                    throw new InvalidOperationException("You cannot accept your own reschedule proposal.");
-                }
-
-                if (session.RequesterId != userId && session.HelperId != userId)
-                {
-                    throw new UnauthorizedAccessException("You are not a participant in this session.");
-                }
-            }
+            _validator.EnsureCanAccept(ctx);
 
             // Ensure credits are escrowed if not already done (necessary for "Offer Help" flow or re-offers)
             if (session.EscrowHold == null || session.EscrowHold.Status != EscrowStatus.Held)
@@ -403,15 +455,10 @@ namespace SkillifyAPI.Services.SessionService
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId, ct)
                 ?? throw new KeyNotFoundException("Session not found.");
 
-            if (session.HelperId != helperId)
-            {
-                throw new UnauthorizedAccessException("You are not authorized to decline this session request.");
-            }
+            var ctx = new SessionValidationContext { Session = session, ActingUserId = helperId };
 
-            if (session.Status != SessionStatus.Pending)
-            {
-                throw new InvalidOperationException("Only pending sessions can be declined.");
-            }
+            _validator.EnsureIsHelper(ctx);
+            _validator.EnsureCanBeDeclined(ctx);
 
             session.Status = SessionStatus.Declined;
 
@@ -449,20 +496,13 @@ namespace SkillifyAPI.Services.SessionService
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId, ct)
                 ?? throw new KeyNotFoundException("Session not found.");
 
-            if (session.RequesterId != userId && session.HelperId != userId)
-            {
-                throw new UnauthorizedAccessException("You are not authorized to cancel this session.");
-            }
+            var ctx = new SessionValidationContext { Session = session, ActingUserId = userId };
 
-            if (session.Status != SessionStatus.Pending && session.Status != SessionStatus.Accepted && session.Status != SessionStatus.ReOffered)
-            {
-                throw new InvalidOperationException("Only pending, accepted, or re-offered sessions can be cancelled.");
-            }
+            _validator.EnsureIsParticipant(ctx, "cancel");
+            _validator.EnsureCanBeCancelled(ctx);
 
             if (session.Status == SessionStatus.Accepted)
-            {
                 CancelScheduledJobs(session);
-            }
 
             session.Status = SessionStatus.Cancelled;
 
@@ -500,75 +540,82 @@ namespace SkillifyAPI.Services.SessionService
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId, ct)
                 ?? throw new KeyNotFoundException("Session not found.");
 
-            if (session.RequesterId != userId && session.HelperId != userId)
-            {
-                throw new UnauthorizedAccessException("You are not authorized to reschedule this session.");
-            }
-
-            if (session.Status != SessionStatus.Pending && session.Status != SessionStatus.Accepted && session.Status != SessionStatus.ReOffered)
-            {
-                throw new InvalidOperationException("You can only reschedule pending, accepted, or re-offered sessions.");
-            }
-
             var scheduledAt = EnsureUtc(newScheduledAt);
-            if (scheduledAt <= DateTime.UtcNow)
+            var ctx = new SessionValidationContext
             {
-                throw new ArgumentException("Reschedule time must be in the future (UTC).");
-            }
+                Session = session,
+                ActingUserId = userId,
+                ProposedScheduledAt = scheduledAt
+            };
+
+            _validator.EnsureIsParticipant(ctx, "reschedule");
+            _validator.EnsureCanBeRescheduled(ctx);
+            _validator.EnsureScheduledAtIsFuture(ctx);
 
             // If it was already accepted, we must cancel current scheduled Hangfire jobs and clear Zego room
             if (session.Status == SessionStatus.Accepted)
             {
                 CancelScheduledJobs(session);
-                session.HangfireOpenJobId = null;
-                session.HangfireCloseJobId = null;
-                session.ZegoRoomId = null;
-                session.AcceptedAt = null;
+
+
+                session.ScheduledAt = scheduledAt;
+                session.Status = SessionStatus.ReOffered;
+
+                await _sessionRepository.AddEventAsync(new SessionEvent
+                {
+                    SessionId = session.Id,
+                    UserId = userId,
+                    Type = SessionStatus.ReOffered,
+                    CreatedAt = DateTime.UtcNow,
+                    Comment = comment
+                }, ct);
+
+                await _sessionRepository.SaveChangesAsync(ct);
             }
-
-            session.ScheduledAt = scheduledAt;
-            session.Status = SessionStatus.ReOffered;
-
-            await _sessionRepository.AddEventAsync(new SessionEvent
-            {
-                SessionId = session.Id,
-                UserId = userId,
-                Type = SessionStatus.ReOffered,
-                CreatedAt = DateTime.UtcNow,
-                Comment = comment
-            }, ct);
-
-            await _sessionRepository.SaveChangesAsync(ct);
         }
-
         public async Task<GetSessionDTO> GetSessionByIdAsync(int userId, int sessionId, CancellationToken ct = default)
         {
             var session = await _sessionRepository.GetByIdWithDetailsAsync(sessionId, ct)
                 ?? throw new KeyNotFoundException("Session not found.");
 
-            if (session.RequesterId != userId && session.HelperId != userId)
-            {
-                throw new UnauthorizedAccessException("You are not authorized to view this session.");
-            }
+            var ctx = new SessionValidationContext { Session = session, ActingUserId = userId };
+            _validator.EnsureIsParticipant(ctx, "view");
 
-            return MapToDto(session);
+            var userRating = await _ratingRepository.GetUserRatingForSessionAsync(userId, sessionId, ct);
+            return MapToDto(session, userRating);
         }
-
         public async Task<IEnumerable<GetSessionDTO>> GetRequestedSessionsAsync(int requesterId, CancellationToken ct = default)
         {
-            var sessions = await _sessionRepository.GetRequestedSessionsAsync(requesterId, ct);
-            return sessions.Select(MapToDto);
-        }
+            var sessions = (await _sessionRepository.GetRequestedSessionsAsync(requesterId, ct)).ToList();
+            if (!sessions.Any())
+                return Enumerable.Empty<GetSessionDTO>();
 
+            var sessionIds = sessions.Select(s => s.Id).ToList();
+            var ratings = await _ratingRepository.GetUserRatingsForSessionsAsync(requesterId, sessionIds, ct);
+
+            return sessions.Select(s => {
+                ratings.TryGetValue(s.Id, out var rating);
+                return MapToDto(s, rating);
+            });
+        }
         public async Task<IEnumerable<GetSessionDTO>> GetReceivedSessionsAsync(int helperId, CancellationToken ct = default)
         {
-            var sessions = await _sessionRepository.GetReceivedSessionsAsync(helperId, ct);
-            return sessions.Select(MapToDto);
+            var sessions = (await _sessionRepository.GetReceivedSessionsAsync(helperId, ct)).ToList();
+            if (!sessions.Any())
+                return Enumerable.Empty<GetSessionDTO>();
+
+            var sessionIds = sessions.Select(s => s.Id).ToList();
+            var ratings = await _ratingRepository.GetUserRatingsForSessionsAsync(helperId, sessionIds, ct);
+
+            return sessions.Select(s => {
+                ratings.TryGetValue(s.Id, out var rating);
+                return MapToDto(s, rating);
+            });
         }
 
-        private static GetSessionDTO MapToDto(Session s)
+        private static GetSessionDTO MapToDto(Session s, Rating? userRating = null)
         {
-            return new GetSessionDTO
+            var dto = new GetSessionDTO
             {
                 Id = s.Id,
                 RequesterId = s.RequesterId,
@@ -588,6 +635,21 @@ namespace SkillifyAPI.Services.SessionService
                 CreatedAt = s.CreatedAt,
                 ZegoRoomId = s.ZegoRoomId
             };
+
+            if (userRating != null)
+            {
+                dto.UserRated = true;
+                dto.UserCanRate = false;
+                dto.UserRatingScore = userRating.Score;
+            }
+            else
+            {
+                dto.UserRated = false;
+                dto.UserCanRate = s.Status == SessionStatus.Completed;
+                dto.UserRatingScore = null;
+            }
+
+            return dto;
         }
 
         private static DateTime EnsureUtc(DateTime value) =>

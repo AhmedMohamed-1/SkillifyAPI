@@ -10,6 +10,12 @@ namespace SkillifyAPI.Services.SessionService
         public Task CloseSession(int sessionId);
         public void CancelScheduledJobs(Session session);
 
+        /// <summary>
+        /// Processes a ZegoCloud room-user event webhook.
+        /// On "room_user_join" by the helper  → releases escrow to the helper immediately.
+        /// On session timeout without helper join → marks session Expired and refunds the payer.
+        /// </summary>
+        Task HandleWebhookAsync(ZegoWebhookDto dto, CancellationToken ct = default);
         Task<GetSessionDTO> RequestSessionAsync(int requesterId, RequestHelpDTO dto, CancellationToken ct = default);
         Task<GetSessionDTO> OfferSessionAsync(int helperId, OfferHelpDTO dto, CancellationToken ct = default);
         Task AcceptSessionAsync(int userId, int sessionId, CancellationToken ct = default);

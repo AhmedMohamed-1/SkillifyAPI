@@ -21,5 +21,11 @@ namespace SkillifyAPI.DTOs.Session
         public DateTime? CompletedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? ZegoRoomId { get; set; }
+
+
+
+        public bool UserRated { get; set; }
+        public bool UserCanRate { get; set; }
+        public decimal? UserRatingScore { get; set; }
     }
 }
