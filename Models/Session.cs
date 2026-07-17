@@ -27,6 +27,7 @@ namespace SkillifyAPI.Models
         public SessionDuration DurationMinutes { get; set; }
         public int CreditCost { get; set; }
         public SessionStatus Status { get; set; } = SessionStatus.Pending;
+        public int? PendingRescheduleByUserId { get; set; }
         public DateTime ScheduledAt { get; set; }
         public DateTime? AcceptedAt { get; set; }
         public DateTime? CompletedAt { get; set; }

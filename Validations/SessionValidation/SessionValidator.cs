@@ -93,6 +93,13 @@ namespace SkillifyAPI.Validations.SessionValidation
              && status != SessionStatus.ReOffered)
                 throw new InvalidOperationException(
                     "You can only reschedule pending, accepted, or re-offered sessions.");
+
+            if (status == SessionStatus.ReOffered &&
+                ctx.Session.PendingRescheduleByUserId == ctx.ActingUserId)
+            {
+                throw new InvalidOperationException(
+                    "You must wait for the other participant to respond.");
+            }
         }
 
         // ── Authorisation guards ──────────────────────────────────────────────
@@ -147,11 +154,7 @@ namespace SkillifyAPI.Validations.SessionValidation
         {
             EnsureIsParticipant(ctx, "accept");
 
-            var lastReOffer = ctx.Session.SessionEvents
-                .OrderByDescending(e => e.CreatedAt)
-                .FirstOrDefault(e => e.Type == SessionStatus.ReOffered);
-
-            if (lastReOffer != null && lastReOffer.UserId == ctx.ActingUserId)
+            if (ctx.Session.PendingRescheduleByUserId == ctx.ActingUserId)
                 throw new InvalidOperationException(
                     "You cannot accept your own reschedule proposal.");
         }

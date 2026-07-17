@@ -48,6 +48,7 @@ namespace SkillifyAPI.Services.SessionService
             session.ZegoRoomId = Guid.NewGuid().ToString("N");
             session.Status = SessionStatus.Accepted;
             session.AcceptedAt = DateTime.UtcNow;
+            session.PendingRescheduleByUserId = null;
 
             if (session.HangfireCloseJobId != null)
             {
@@ -355,7 +356,7 @@ namespace SkillifyAPI.Services.SessionService
             await _sessionRepository.SaveChangesAsync(ct);
 
             var createdSession = await _sessionRepository.GetByIdWithDetailsAsync(session.Id, ct);
-            return MapToDto(createdSession!);
+            return MapToDto(createdSession!, requesterId);
         }
 
         public async Task<GetSessionDTO> OfferSessionAsync(int helperId, OfferHelpDTO dto, CancellationToken ct = default)
@@ -409,7 +410,7 @@ namespace SkillifyAPI.Services.SessionService
             await _sessionRepository.SaveChangesAsync(ct);
 
             var createdSession = await _sessionRepository.GetByIdWithDetailsAsync(session.Id, ct);
-            return MapToDto(createdSession!);
+            return MapToDto(createdSession!, helperId);
         }
 
         public async Task AcceptSessionAsync(int userId, int sessionId, CancellationToken ct = default)
@@ -461,6 +462,7 @@ namespace SkillifyAPI.Services.SessionService
             _validator.EnsureCanBeDeclined(ctx);
 
             session.Status = SessionStatus.Declined;
+            session.PendingRescheduleByUserId = null;
 
             // Refund requester (if credits were escrowed)
             if (session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held)
@@ -505,6 +507,7 @@ namespace SkillifyAPI.Services.SessionService
                 CancelScheduledJobs(session);
 
             session.Status = SessionStatus.Cancelled;
+            session.PendingRescheduleByUserId = null;
 
             // Refund requester
             if (session.EscrowHold != null && session.EscrowHold.Status == EscrowStatus.Held)
@@ -556,22 +559,22 @@ namespace SkillifyAPI.Services.SessionService
             if (session.Status == SessionStatus.Accepted)
             {
                 CancelScheduledJobs(session);
-
-
-                session.ScheduledAt = scheduledAt;
-                session.Status = SessionStatus.ReOffered;
-
-                await _sessionRepository.AddEventAsync(new SessionEvent
-                {
-                    SessionId = session.Id,
-                    UserId = userId,
-                    Type = SessionStatus.ReOffered,
-                    CreatedAt = DateTime.UtcNow,
-                    Comment = comment
-                }, ct);
-
-                await _sessionRepository.SaveChangesAsync(ct);
             }
+
+            session.ScheduledAt = scheduledAt;
+            session.Status = SessionStatus.ReOffered;
+            session.PendingRescheduleByUserId = userId;
+
+            await _sessionRepository.AddEventAsync(new SessionEvent
+            {
+                SessionId = session.Id,
+                UserId = userId,
+                Type = SessionStatus.ReOffered,
+                CreatedAt = DateTime.UtcNow,
+                Comment = comment
+            }, ct);
+
+            await _sessionRepository.SaveChangesAsync(ct);
         }
         public async Task<GetSessionDTO> GetSessionByIdAsync(int userId, int sessionId, CancellationToken ct = default)
         {
@@ -582,7 +585,7 @@ namespace SkillifyAPI.Services.SessionService
             _validator.EnsureIsParticipant(ctx, "view");
 
             var userRating = await _ratingRepository.GetUserRatingForSessionAsync(userId, sessionId, ct);
-            return MapToDto(session, userRating);
+            return MapToDto(session, userId, userRating);
         }
         public async Task<IEnumerable<GetSessionDTO>> GetRequestedSessionsAsync(int requesterId, CancellationToken ct = default)
         {
@@ -595,7 +598,7 @@ namespace SkillifyAPI.Services.SessionService
 
             return sessions.Select(s => {
                 ratings.TryGetValue(s.Id, out var rating);
-                return MapToDto(s, rating);
+                return MapToDto(s, requesterId, rating);
             });
         }
         public async Task<IEnumerable<GetSessionDTO>> GetReceivedSessionsAsync(int helperId, CancellationToken ct = default)
@@ -609,11 +612,11 @@ namespace SkillifyAPI.Services.SessionService
 
             return sessions.Select(s => {
                 ratings.TryGetValue(s.Id, out var rating);
-                return MapToDto(s, rating);
+                return MapToDto(s, helperId, rating);
             });
         }
 
-        private static GetSessionDTO MapToDto(Session s, Rating? userRating = null)
+        private static GetSessionDTO MapToDto(Session s, int currentUserId, Rating? userRating = null)
         {
             var dto = new GetSessionDTO
             {
@@ -633,7 +636,8 @@ namespace SkillifyAPI.Services.SessionService
                 AcceptedAt = s.AcceptedAt,
                 CompletedAt = s.CompletedAt,
                 CreatedAt = s.CreatedAt,
-                ZegoRoomId = s.ZegoRoomId
+                ZegoRoomId = s.ZegoRoomId,
+                PendingRescheduleByUser = s.PendingRescheduleByUserId == currentUserId
             };
 
             if (userRating != null)

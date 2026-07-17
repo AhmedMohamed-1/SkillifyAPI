@@ -379,7 +379,8 @@ namespace SkillifyAPI.Controllers
                 {
                     return BadRequest(new { message = "Page and page size must be greater than or equal to 1." });
                 }
-                var usersResult = await _userService.GetUsersAsync(page, pageSize, name, skillId, minRating, langId, ct);
+                var currentUserId = GetCurrentUserId();
+                var usersResult = await _userService.GetUsersAsync(page, pageSize, name, skillId, minRating, langId, currentUserId, ct);
                 return Ok(usersResult);
             }
             catch (ArgumentException ex)

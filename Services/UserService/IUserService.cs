@@ -13,6 +13,6 @@ namespace SkillifyAPI.Services.UserService
         Task<GetUserProfileData> GetProfileAsync(int userId, CancellationToken ct = default);
         Task<GetUserProfileData> CompleteProfileAsync(int userId, CompleteProfileDTO dto, CancellationToken ct = default);
         Task<GetUserProfileData> UpdateProfilePictureAsync(int userId, IFormFile profilePicture, CancellationToken ct = default);
-        Task<PagedResult<UsersListDTO>> GetUsersAsync(int page, int pageSize, string? name = null, int? skillId = null, decimal? minRating = null, int? langId = null, CancellationToken ct = default);
+        Task<PagedResult<UsersListDTO>> GetUsersAsync(int page, int pageSize, string? name = null, int? skillId = null, decimal? minRating = null, int? langId = null, int? currentUserId = null, CancellationToken ct = default);
     }
 }
