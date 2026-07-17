@@ -1,5 +1,18 @@
 # Changelog
 
+## [v1.2.4] - 2026-07-17
+
+### Added
+- Added `PendingRescheduleByUserId` (`int?`) property to `Session` model to track the initiator of a reschedule proposal.
+- Added `PendingRescheduleByUser` (`bool`) to `GetSessionDTO` to let the client know if the reschedule was initiated by the current user.
+- Added validation check to block the reschedule initiator from sending consecutive reschedule requests without the other participant's response.
+- Excluded the current authenticated user from the paginated list returned by `GET /api/users`.
+
+### Changed
+- Refactored `SessionValidator.EnsureCanBeRescheduled` and `SessionValidator.EnsureCanAcceptReOffered` to enforce turn-based negotiation using `PendingRescheduleByUserId`.
+- Updated `SessionMeetingService` to populate `PendingRescheduleByUser` in `GetSessionDTO` mapping by checking the current user ID context.
+- Modified `IUserRepository.GetUsersPagedAsync`, `IUserService.GetUsersAsync`, and `UsersController` to pass down and filter out the current user ID.
+
 ## [v1.2.3] - 2026-07-15
 
 ### Added
