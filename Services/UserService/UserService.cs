@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using SkillifyAPI.CloudinaryService;
+using SkillifyAPI.DTOs.Skill.SkillDTO;
 using SkillifyAPI.DTOs.User.UserDTO;
 using SkillifyAPI.Helper;
 using SkillifyAPI.JwtService;
@@ -118,7 +119,7 @@ namespace SkillifyAPI.Services.UserService
             await _repo.SaveChangesAsync(ct);
 
             _logger.LogInformation("auth.refresh_succeeded {Service} {UserId}", nameof(UserService), user.Id);
-            return BuildAuthResponse(_jwt.GenerateAccessToken(user, newRefresh.ToString()!), newRefresh, user.ProfileCompleted);
+            return BuildAuthResponse(_jwt.GenerateAccessToken(user, newRefresh.Token), newRefresh, user.ProfileCompleted);
         }
 
         public async Task RevokeAsync(string refreshToken, string? reason = null, CancellationToken ct = default)
@@ -171,57 +172,104 @@ namespace SkillifyAPI.Services.UserService
             var user = await _repo.GetUserByIdAsync(userId, ct)
                 ?? throw new KeyNotFoundException("User not found.");
 
-            await ValidateSkillSelectionAsync(dto.OfferedMainSkill, dto.OfferedSubSkills, ct);
-            foreach (var needed in dto.NeededSkills)
-                await ValidateSkillSelectionAsync(needed.MainSkillId, needed.SubSkillIds, ct);
+            if (!string.IsNullOrWhiteSpace(dto.Bio))
+                user.Bio = dto.Bio;
 
-            List<int>? languageIds = null;
+            if (!string.IsNullOrWhiteSpace(dto.JobTitle))
+                user.JobTitle = dto.JobTitle;
+
+            if (!string.IsNullOrWhiteSpace(dto.FullName))
+                user.FullName = dto.FullName.Trim();
+
+            if (dto.IsUpdatingOffered)
+                await UpdateOfferedSkillAsync(userId, dto, ct);
+
+            if (dto.NeededSkills is not null)
+                await UpdateNeededSkillsAsync(userId, dto.NeededSkills, ct);
 
             if (dto.LanguageIds is not null)
-            {
-                languageIds = dto.LanguageIds.Distinct().ToList();
-                if (languageIds.Count > 0 && !await _repo.LanguagesExistAsync(languageIds, ct))
-                {
-                    throw new InvalidOperationException("One or more selected languages are invalid.");
-                }
-            }
+                await UpdateLanguagesAsync(userId, dto.LanguageIds, ct);
 
-            user.Bio = dto.Bio;
-            user.JobTitle = dto.JobTitle;
             user.ProfileCompleted = true;
             user.UpdatedAt = DateTime.UtcNow;
-
-
-            await _repo.RemoveUserSkillsAsync(userId, ct);
-
-            var userSkills = new List<UserSkill>
-            {
-                BuildUserSkill(userId, dto.OfferedMainSkill, dto.OfferedSubSkills, dto.OfferedDescription, SkillType.Offered)
-            };
-
-            foreach (var needed in dto.NeededSkills)
-            {
-                userSkills.Add(BuildUserSkill(userId, needed.MainSkillId, needed.SubSkillIds, needed.Description, SkillType.Needed));
-            }
-
-            await _repo.AddUserSkillsAsync(userSkills, ct);
-
-            if (languageIds is not null)
-            {
-                await _repo.RemoveUserLanguagesAsync(userId, ct);
-
-                await _repo.AddUserLanguagesAsync(
-                    languageIds.Select(id => new UserLanguage
-                    {
-                        UserId = userId,
-                        LanguageId = id
-                    }),
-                    ct);
-            }
 
             await _repo.SaveChangesAsync(ct);
 
             return await GetProfileAsync(userId, ct);
+        }
+
+        private async Task UpdateOfferedSkillAsync(int userId, CompleteProfileDTO dto, CancellationToken ct)
+        {
+            var existingOffered = await _repo.GetUserSkillByTypeAsync(userId, SkillType.Offered, ct);
+
+            if (dto.OfferedDescription is not null &&
+                dto.OfferedMainSkill is null &&
+                dto.OfferedSubSkills is null)
+            {
+                if (existingOffered is null)
+                    throw new InvalidOperationException("Cannot update offered skill description before an offered skill exists.");
+
+                existingOffered.Description = dto.OfferedDescription;
+                return;
+            }
+
+            var mainSkillId = dto.OfferedMainSkill ?? existingOffered?.CategoryId
+                ?? throw new InvalidOperationException("Offered main skill is required when creating or updating offered skills.");
+
+            var subSkillIds = dto.OfferedSubSkills
+                ?? existingOffered?.SubSkills.Select(s => s.SubSkillId).ToArray()
+                ?? throw new InvalidOperationException("Offered sub-skills are required when creating or updating offered skills.");
+
+            await ValidateSkillSelectionAsync(mainSkillId, subSkillIds, ct);
+
+            var description = dto.OfferedDescription ?? existingOffered?.Description ?? string.Empty;
+
+            await _repo.RemoveUserSkillsByTypeAsync(userId, SkillType.Offered, ct);
+            await _repo.AddUserSkillsAsync(
+                [BuildUserSkill(userId, mainSkillId, subSkillIds, description, SkillType.Offered)],
+                ct);
+        }
+
+        private async Task UpdateNeededSkillsAsync(int userId, UserSkillSelectionDTO[] neededSkills, CancellationToken ct)
+        {
+            foreach (var needed in neededSkills)
+                await ValidateSkillSelectionAsync(needed.MainSkillId, needed.SubSkillIds, ct);
+
+            await _repo.RemoveUserSkillsByTypeAsync(userId, SkillType.Needed, ct);
+
+            if (neededSkills.Length == 0)
+                return;
+
+            var userSkills = neededSkills
+                .Select(needed => BuildUserSkill(
+                    userId,
+                    needed.MainSkillId,
+                    needed.SubSkillIds,
+                    needed.Description,
+                    SkillType.Needed))
+                .ToList();
+
+            await _repo.AddUserSkillsAsync(userSkills, ct);
+        }
+
+        private async Task UpdateLanguagesAsync(int userId, List<int> languageIds, CancellationToken ct)
+        {
+            var distinctLanguageIds = languageIds.Distinct().ToList();
+            if (distinctLanguageIds.Count > 0 && !await _repo.LanguagesExistAsync(distinctLanguageIds, ct))
+                throw new InvalidOperationException("One or more selected languages are invalid.");
+
+            await _repo.RemoveUserLanguagesAsync(userId, ct);
+
+            if (distinctLanguageIds.Count == 0)
+                return;
+
+            await _repo.AddUserLanguagesAsync(
+                distinctLanguageIds.Select(id => new UserLanguage
+                {
+                    UserId = userId,
+                    LanguageId = id
+                }),
+                ct);
         }
 
         public async Task<GetUserProfileData> UpdateProfilePictureAsync(int userId, IFormFile profilePicture, CancellationToken ct = default)

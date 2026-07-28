@@ -107,6 +107,25 @@ namespace SkillifyAPI.Repositories.UserRepository
             _context.UserSkills.RemoveRange(skills);
         }
 
+        public async Task RemoveUserSkillsByTypeAsync(int userId, SkillType skillType, CancellationToken ct = default)
+        {
+            var skills = await _context.UserSkills
+                .Where(s => s.UserId == userId && s.SkillType == skillType)
+                .Include(s => s.SubSkills)
+                .ToListAsync(ct);
+
+            if (skills.Count == 0)
+                return;
+
+            _context.UserSkillSubSkills.RemoveRange(skills.SelectMany(s => s.SubSkills));
+            _context.UserSkills.RemoveRange(skills);
+        }
+
+        public Task<UserSkill?> GetUserSkillByTypeAsync(int userId, SkillType skillType, CancellationToken ct = default)
+            => _context.UserSkills
+                .Include(s => s.SubSkills)
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.SkillType == skillType, ct);
+
         public async Task AddUserSkillsAsync(IEnumerable<UserSkill> userSkills, CancellationToken ct = default)
             => await _context.UserSkills.AddRangeAsync(userSkills, ct);
 

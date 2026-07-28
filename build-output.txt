@@ -1,0 +1,46 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(88,45): warning CS8603: Possible null reference return. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(158,36): warning SYSLIB0053: 'AesGcm.AesGcm(byte[])' is obsolete: 'AesGcm should indicate the required tag size for encryption and decryption. Use a constructor that accepts the tag size.' (https://aka.ms/dotnet-warnings/SYSLIB0053) [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(150,24): warning CS8603: Possible null reference return. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(35,23): warning CS8618: Non-nullable field 'token' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(36,26): warning CS8618: Non-nullable field 'errorInfo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(30,23): warning CS8618: Non-nullable field 'errorMessage' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Firebase\FirebaseNotificationService.cs(19,17): warning CS0618: 'Message.Token' is obsolete: 'Deprecated. Use Fid instead.' [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Firebase\FirebaseNotificationService.cs(46,17): warning CS0618: 'Message.Token' is obsolete: 'Deprecated. Use Fid instead.' [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\JwtService\JwtTokenService.cs(30,44): warning CS8604: Possible null reference argument for parameter 'value' in 'Claim.Claim(string type, string value)'. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Validations\UserValidation\CompleteProfileValidator.cs(46,41): warning CS8602: Dereference of a possibly null reference. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\UserProfileMapper.cs(47,28): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\UserProfileMapper.cs(79,36): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\UserProfileMapper.cs(98,28): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Repositories\UserRepository\UserRepository.cs(53,42): warning CS8602: Dereference of a possibly null reference. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(96,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(120,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(126,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(144,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+  SkillifyAPI -> F:\Ahmed\DEPI\SkillifyAPI\bin\Debug\net10.0\SkillifyAPI.dll
+
+Build succeeded.
+
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(88,45): warning CS8603: Possible null reference return. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(158,36): warning SYSLIB0053: 'AesGcm.AesGcm(byte[])' is obsolete: 'AesGcm should indicate the required tag size for encryption and decryption. Use a constructor that accepts the tag size.' (https://aka.ms/dotnet-warnings/SYSLIB0053) [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(150,24): warning CS8603: Possible null reference return. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(35,23): warning CS8618: Non-nullable field 'token' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(36,26): warning CS8618: Non-nullable field 'errorInfo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\Zego\GenerateToken.cs(30,23): warning CS8618: Non-nullable field 'errorMessage' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Firebase\FirebaseNotificationService.cs(19,17): warning CS0618: 'Message.Token' is obsolete: 'Deprecated. Use Fid instead.' [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Firebase\FirebaseNotificationService.cs(46,17): warning CS0618: 'Message.Token' is obsolete: 'Deprecated. Use Fid instead.' [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\JwtService\JwtTokenService.cs(30,44): warning CS8604: Possible null reference argument for parameter 'value' in 'Claim.Claim(string type, string value)'. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Validations\UserValidation\CompleteProfileValidator.cs(46,41): warning CS8602: Dereference of a possibly null reference. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\UserProfileMapper.cs(47,28): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\UserProfileMapper.cs(79,36): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Helper\UserProfileMapper.cs(98,28): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Repositories\UserRepository\UserRepository.cs(53,42): warning CS8602: Dereference of a possibly null reference. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(96,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(120,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(126,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+F:\Ahmed\DEPI\SkillifyAPI\Services\RatingService\RatingService.cs(144,32): warning CS8601: Possible null reference assignment. [F:\Ahmed\DEPI\SkillifyAPI\SkillifyAPI.csproj]
+    18 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:22.90

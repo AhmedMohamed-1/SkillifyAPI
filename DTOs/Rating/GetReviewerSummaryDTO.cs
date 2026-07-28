@@ -6,7 +6,7 @@ namespace SkillifyAPI.DTOs.Rating
     public class GetReviewerSummaryDTO
     {
         public int UserId { get; set; }
-        public string FullName { get; set; } = null!;
+        public string? FullName { get; set; } = null!;
         public string? ProfilePictureUrl { get; set; }
     }
 }

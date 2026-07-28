@@ -11,7 +11,7 @@ namespace SkillifyAPI.DTOs.User.UserDTO
     public class GetUserProfileData
     {
         public int UserID { get; set; }
-        public string FullName { get; set; } = null!;
+        public string? FullName { get; set; } = null!;
         public string? Bio { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public string? JobTitle { get; set; }

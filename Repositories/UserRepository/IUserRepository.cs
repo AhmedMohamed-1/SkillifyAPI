@@ -22,6 +22,8 @@ namespace SkillifyAPI.Repositories.UserRepository
         Task<bool> MainSkillExistsAsync(int mainSkillId, CancellationToken ct = default);
         Task<bool> SubSkillsExistForMainSkillAsync(int mainSkillId, IEnumerable<int> subSkillIds, CancellationToken ct = default);
         Task RemoveUserSkillsAsync(int userId, CancellationToken ct = default);
+        Task RemoveUserSkillsByTypeAsync(int userId, SkillType skillType, CancellationToken ct = default);
+        Task<UserSkill?> GetUserSkillByTypeAsync(int userId, SkillType skillType, CancellationToken ct = default);
         Task AddUserSkillsAsync(IEnumerable<UserSkill> userSkills, CancellationToken ct = default);
 
         Task<bool> LanguagesExistAsync(IReadOnlyCollection<int> languageIds, CancellationToken ct = default);

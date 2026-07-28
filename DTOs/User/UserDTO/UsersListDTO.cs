@@ -8,7 +8,7 @@ namespace SkillifyAPI.DTOs.User.UserDTO
     public class UsersListDTO
     {
         public int UserId { get; set; }
-        public string FullName { get; set; } = null!;
+        public string? FullName { get; set; } = null!;
         public string? JobTitle { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public GetMainSkillDTO? OfferedMainSkill { get; set; }

@@ -267,7 +267,7 @@ namespace SkillifyAPI.Controllers
         [HttpPut("me/profile")]
         [SwaggerOperation(
             Summary = "Complete or update user profile",
-            Description = "Allows an authenticated user to complete or update their profile by setting bio, job title, main skill, sub-skills, and languages."
+            Description = "Allows an authenticated user to complete or partially update their profile. Send only the fields you want to change; omitted fields (null) are left unchanged."
         )]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GetUserProfileData))]
         [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(object))]

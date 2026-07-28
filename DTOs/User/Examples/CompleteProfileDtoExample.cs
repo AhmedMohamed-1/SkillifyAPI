@@ -10,6 +10,7 @@ namespace SkillifyAPI.DTOs.User.Examples
         {
             return new CompleteProfileDTO
             {
+                FullName = "Ahmed Mohamed",
                 Bio = "Junior Backend Developer specialized in .NET",
                 JobTitle = "Backend Developer",
                 LanguageIds = new List<int> { 7 , 42},

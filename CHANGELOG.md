@@ -1,5 +1,20 @@
 # Changelog
 
+## [v1.3.0] - 2026-07-28
+
+### Changed
+- **Platform upgrade:** migrated the project from **.NET 9** to **.NET 10** (`net10.0` target framework).
+- **Database upgrade:** migrated from **SQL Server 2019** to **SQL Server 2025** for application data and Hangfire job storage.
+- Upgraded core Microsoft packages to **10.0.10**:
+  - `Microsoft.EntityFrameworkCore` / `Microsoft.EntityFrameworkCore.SqlServer`
+  - `Microsoft.AspNetCore.Authentication.JwtBearer`
+  - `Microsoft.AspNetCore.OpenApi`
+- Upgraded **Swashbuckle.AspNetCore** from 6.x to **10.2.3** (with **Microsoft.OpenApi v2**) for .NET 10 compatibility.
+- Updated OpenAPI namespace usage from `Microsoft.OpenApi.Models` to `Microsoft.OpenApi` per OpenAPI.NET v2 breaking changes.
+
+### Fixed
+- Updated Swagger JWT security configuration in `Program.cs` for Swashbuckle v10: replaced the removed `OpenApiReference` / `OpenApiSecurityScheme.Reference` pattern with `OpenApiSecuritySchemeReference` in `AddSecurityRequirement`, resolving the build error and restoring the Bearer auth button in Swagger UI.
+
 ## [v1.2.4] - 2026-07-17
 
 ### Added

@@ -5,7 +5,7 @@ using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using SkillifyAPI.BackgroundService;
 using SkillifyAPI.CloudinaryService;
 using SkillifyAPI.Data;
@@ -38,6 +38,7 @@ using SkillifyAPI.ZegoService;
 using Swashbuckle.AspNetCore.Filters;
 using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,7 +62,22 @@ if (FirebaseApp.DefaultInstance == null)
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary"));
 // ── Controllers ───────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => !string.IsNullOrEmpty(e.ErrorMessage) ? e.ErrorMessage : e.Exception?.Message)
+                .Where(msg => !string.IsNullOrEmpty(msg))
+                .ToList();
+
+            var message = string.Join(" ", errors);
+
+            return new BadRequestObjectResult(new { message = message });
+        };
+    });
 builder.Services.AddHttpClient();
 
 // ── Swagger / OpenAPI (Swashbuckle) ───────────────────────────────────────────
@@ -85,19 +101,9 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT"
     });
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
 
     options.EnableAnnotations();

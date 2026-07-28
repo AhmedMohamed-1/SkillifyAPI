@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+This file is used by the publish/package process of your Web project. You can customize the behavior of this process
+by editing this MSBuild file. In order to learn more about this please visit https://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project>
+  <PropertyGroup>
+    <TimeStampOfAssociatedLegacyPublishXmlFile />
+    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAKrqBW/FhAU+5PpVV2T7WuAAAAAACAAAAAAAQZgAAAAEAACAAAADjQe1evGDDnHcCXtLsb6FHLGWbKv3c7XqHVm4y34sD5wAAAAAOgAAAAAIAACAAAAAHaM/MNGrzYWMDxLIGVMOEErZZXV950CokYt5kJakqLSAAAADmIsIQrTBJObmxjotIpoElM4so6QHUr6IjcQ8s+LZsqUAAAADDj45dWSSgHd3sFQkJGWut77qvSrZMeILe9HZjk30RkgObROGCXfqM9vow1+vLvQo4ahW1Ws6+xxGMA5thEGhR</EncryptedPassword>
+    <History>True|2026-07-25T00:14:22.4400074Z||;False|2026-07-25T02:29:13.7122342+03:00||;False|2026-07-25T02:23:47.8983248+03:00||;False|2026-07-25T02:07:58.5822166+03:00||;False|2026-07-23T07:28:46.8180152+03:00||;False|2026-07-23T07:15:34.1071737+03:00||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+  <ItemGroup>
+    <DestinationConnectionStrings Include="DefaultConnection">
+      <Value>Server=db60829.databaseasp.net%3b Database=db60829%3b User Id=db60829%3b Password=Ky8%25j9=T!F4o%3b Encrypt=False%3b MultipleActiveResultSets=True%3b</Value>
+    </DestinationConnectionStrings>
+  </ItemGroup>
+  <ItemGroup>
+    <EFMigrations Include="SkillifyAPI.Data.AppDbContext">
+      <Value>Server=db60829.databaseasp.net%3b Database=db60829%3b User Id=db60829%3b Password=Ky8%25j9=T!F4o%3b Encrypt=False%3b MultipleActiveResultSets=True%3b</Value>
+    </EFMigrations>
+  </ItemGroup>
+</Project>

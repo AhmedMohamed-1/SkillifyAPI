@@ -1,9 +1,17 @@
 # SkillifyAPI — Comprehensive QA & Software Testing Guide
 
-**Version:** 1.5  
+**Version:** 1.6  
 **Prepared For:** QA / Software Testing Team  
 **Project:** SkillifyAPI — Skill-exchange platform where users request and offer help sessions.  
-**Technology:** ASP.NET Core Web API (.NET 9), Entity Framework Core, FluentValidation, JWT Auth, Hangfire, Cloudinary, ZegoCloud, Firebase Cloud Messaging (FCM)
+**Technology:** ASP.NET Core Web API (.NET 10), Entity Framework Core 10, FluentValidation, JWT Auth, Hangfire, Cloudinary, ZegoCloud, Firebase Cloud Messaging (FCM), SQL Server 2025  
+
+> 🌐 **Live QA & Testing Environments:**  
+> - 📄 **Swagger UI (OpenAPI Docs):** [https://skillifyapi-test.tryasp.net/swagger/index.html](https://skillifyapi-test.tryasp.net/swagger/index.html)  
+> - 📹 **Zego Video Web UI Kit (Live Meeting Test):** [https://skillifyapi-test.tryasp.net/web_uikits.html](https://skillifyapi-test.tryasp.net/web_uikits.html)  
+> - ⚙️ **Hangfire Dashboard (Jobs & Automation):** [https://skillifyapi-test.tryasp.net/hangfire](https://skillifyapi-test.tryasp.net/hangfire)  
+>  
+> ⚠️ **Note on Live Video Sessions (ZegoCloud):**  
+> Due to the ZegoCloud free trial plan, live video session testing is available for **25 days**. After this period, video calls will stop working until keys are renewed. To continue testing live video sessions, contact the developer to update the API keys or configure your own `AppId` and `ServerSecret` in `appsettings.json` and run the project locally.
 
 ---
 
@@ -22,11 +30,15 @@
 11. [Detailed Test Case Scenarios](#11-detailed-test-case-scenarios)
 12. [Edge Cases & Negative Test Cases](#12-edge-cases--negative-test-cases)
 
-### Document Change Log (v1.5)
+### Document Change Log (v1.6)
 | Area | What Changed |
 |------|--------------|
+| **Platform Upgrade** | Upgraded target framework from **.NET 9** to **.NET 10** (`net10.0`) and database to **SQL Server 2025**. Swashbuckle v10 with Microsoft.OpenApi v2. |
+| **Dual-User Ratings** | Both session participants (requester and helper) can now rate a completed session once each (unique index on `(SessionId, ReviewerId)`). Added `userRated`, `userCanRate`, and `userRatingScore` fields to `GetSessionDTO`. |
+| **Turn-Based Rescheduling** | Added `PendingRescheduleByUserId` property on `Session` model and `pendingRescheduleByUser` boolean flag on `GetSessionDTO` to enforce turn-based negotiation and block consecutive reschedule attempts. |
+| **Zego Webhook Controller** | Added `ZegoWebhookController` (`POST /api/zego/webhook` and `GET /api/zego/webhook/latest`). Automatic escrow release when Helper joins before halfway mark; automatic `Expired` status + refund when Helper does not join. |
+| **Users Query** | `GET /api/Users` now automatically excludes the currently authenticated user from the returned list. Added `PUT /api/Users/me/profile-picture` and `GET /api/Users/{id}` to reference. |
 | **Profile Completion** | Payload updated to accept multiple `NeededSkills` and `LanguageIds` list. Bulk operations added for performance. |
-| **Users Query** | `GET /api/Users` is now **Protected** (`[Authorize]` required) and supports filters: `name`, `skillId`, `minRating`, `langId`. |
 | **Credit Transactions** | `GET /api/CreditTransactions/history` response changed to a `CreditTransactionHistoryDto` containing `history` list and `currentBalance`. (v1.4) |
 | **Notifications** | Full in-app notification system + Firebase FCM push + device token registration (v1.3) |
 | **Credit Transactions (v1.3)** | `GET /api/CreditTransactions/history` + `Description` field on ledger |
@@ -34,7 +46,7 @@
 | **Daily Gift Job** | Hangfire recurring job gifts 5–100 credits to low-balance users daily |
 | **Ratings API** | Full CRUD-read + submit endpoints (`/api/Ratings`) |
 | **Security** | JWT `sid` session binding, rate limiting (50 req/min) |
-| **Platform** | .NET 9, ZegoCloud (replaced Agora), Swagger v1.3 |
+| **Platform** | ZegoCloud (replaced Agora), Swagger v1.3 |
 
 ---
 
@@ -113,9 +125,7 @@
 | `Bio` | string | Yes | null | Max 500 chars |
 | `JobTitle` | string | Yes | null | Max 100 chars |
 | `CreditBalance` | int | No | **100** | — |
-| `Profile
-
-` | bool | No | **false** | — |
+| `ProfileCompleted` | bool | No | **false** | — |
 | `LastGiftCreditAt` | DateTime? | Yes | null | Set when user receives a daily gift credit |
 | `CreatedAt` | DateTime | No | — | — |
 | `UpdatedAt` | DateTime | No | — | — |
@@ -132,6 +142,7 @@
 | `DurationMinutes` | enum | No | — | `15`, `30`, or `60` only |
 | `CreditCost` | int | No | — | Matches DurationMinutes value |
 | `Status` | enum | No | `Pending` | See state machine below |
+| `PendingRescheduleByUserId` | int? | Yes | null | User ID who proposed current reschedule |
 | `ScheduledAt` | DateTime | No | — | Must be in the future (UTC) |
 | `AcceptedAt` | DateTime? | Yes | null | Set when status → Accepted |
 | `CompletedAt` | DateTime? | Yes | null | Set when session closes |
@@ -183,7 +194,7 @@ Pending → Accepted → Active → Completed
 | Column | Type | Notes |
 |--------|------|-------|
 | `Id` | int | PK |
-| `SessionId` | int | FK → Session (UNIQUE) — one rating per session |
+| `SessionId` | int | FK → Session (Index: `(SessionId, ReviewerId)` **UNIQUE** — allows both participants to rate once each) |
 | `ReviewerId` | int | FK → User (person giving the review) |
 | `RevieweeId` | int | FK → User (person receiving the review) |
 | `Score` | decimal(3,1) | Range: 1.0 – 5.0 |
@@ -347,6 +358,7 @@ Pending → Accepted → Active → Completed
 | `NewScheduledAt` | Required | — |
 | `NewScheduledAt` | Must be in the future (UTC) | `"Reschedule time must be in the future (UTC)."` |
 | Session Status | Must be `Pending`, `Accepted`, or `ReOffered` | `"You can only reschedule pending, accepted, or re-offered sessions."` |
+| Turn-based Negotiation | Cannot propose consecutive reschedules on `ReOffered` session if already pending by acting user | `"You must wait for the other participant to respond."` |
 | User | Must be a participant (Requester or Helper) | `"You are not authorized to reschedule this session."` |
 
 ### 4.8 Pagination & Filtering (`GET /api/Users`)
@@ -359,6 +371,8 @@ Pending → Accepted → Active → Completed
 | `skillId` | null | Optional main skill ID filter (user must have selected this skill) |
 | `minRating` | null | Optional decimal to filter users with average rating >= this value |
 | `langId` | null | Optional language ID filter (user must know this language) |
+
+> **User Exclusion:** The currently authenticated user (`currentUserId`) is **automatically excluded** from the paginated list returned by `GET /api/Users`.
 
 ### 4.9 Submit Rating (`POST /api/Ratings`)
 
@@ -375,9 +389,9 @@ Pending → Accepted → Active → Completed
 | Session must exist | `"Session not found."` → `404` |
 | Caller must be a session participant | `"You are not a participant in this session."` → `401` |
 | Session must be `Completed` | `"You can only rate a completed session."` → `400` |
-| No existing rating for session | `"This session has already been rated."` → `400` |
+| No existing rating by caller for session | `"This session has already been rated."` → `400` |
 
-> Reviewer = authenticated user. Reviewee = the other session participant.
+> **Dual-User Rating Support:** Both participants (Requester and Helper) are allowed to submit a rating for the same completed session (one rating per user per session). Reviewer = authenticated user, Reviewee = the other participant.
 
 ### 4.10 Register / Unregister Device (`POST/DELETE /api/Notifications/devices`)
 
@@ -418,8 +432,10 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
 | `POST` | `/api/Users/revoke` | ✅ Bearer | Revoke ALL refresh tokens (sign out all devices) |
 | `POST` | `/api/Users/logout` | ✅ Bearer | Revoke current-session refresh token only |
 | `GET` | `/api/Users/me` | ✅ Bearer | Get authenticated user's full profile |
-| `PUT` | `/api/Users/me/profile` | ✅ Bearer | Update profile (multipart/form-data) |
-| `GET` | `/api/Users` | ✅ Bearer | Get paginated list of users (filtered by name, skillId, minRating, langId) |
+| `PUT` | `/api/Users/me/profile` | ✅ Bearer | Update profile details (JSON body) |
+| `PUT` | `/api/Users/me/profile-picture` | ✅ Bearer | Upload/update profile picture (`multipart/form-data`) |
+| `GET` | `/api/Users` | ✅ Bearer | Get paginated list of users (filtered by name, skillId, minRating, langId; excludes current user) |
+| `GET` | `/api/Users/{id}` | ✅ Bearer | Get full profile details of a specific user by ID |
 
 ### 5.2 Sessions Controller (`/api/Sessions`)
 
@@ -432,7 +448,7 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
 | `POST` | `/api/Sessions/{sessionId}/accept` | Accept a pending/re-offered session |
 | `POST` | `/api/Sessions/{sessionId}/decline` | Decline a pending session |
 | `POST` | `/api/Sessions/{sessionId}/cancel` | Cancel a pending/accepted/re-offered session |
-| `POST` | `/api/Sessions/{sessionId}/reschedule` | Propose a new schedule |
+| `POST` | `/api/Sessions/{sessionId}/reschedule` | Propose a new schedule (turn-based enforcement) |
 | `GET` | `/api/Sessions/requested` | Get all sessions the current user requested |
 | `GET` | `/api/Sessions/received` | Get all sessions the current user received |
 | `GET` | `/api/Sessions/{sessionId}` | Get session details (participants only) |
@@ -504,11 +520,20 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
 
 | Method | Endpoint | Auth | Summary |
 |--------|----------|------|---------|
-| `POST` | `/api/Ratings` | ✅ Bearer | Submit a rating for a completed session |
+| `POST` | `/api/Ratings` | ✅ Bearer | Submit a rating for a completed session (both participants can rate once) |
 | `GET` | `/api/Ratings/received` | ✅ Bearer | Get all reviews received by the current user |
 | `GET` | `/api/Ratings/given` | ✅ Bearer | Get all reviews submitted by the current user |
 | `GET` | `/api/Ratings/user/{userId}` | ❌ Public | Get all public reviews received by a user |
 | `GET` | `/api/Ratings/session/{sessionId}` | ✅ Bearer | Get rating for a session (`204 No Content` if none) |
+
+### 5.10 Zego Webhook Controller (`/api/zego/webhook`)
+
+> **Public callback endpoint used by ZegoCloud server**
+
+| Method | Endpoint | Auth | Summary |
+|--------|----------|------|---------|
+| `POST` | `/api/zego/webhook` | ❌ Public | Receives ZegoCloud room-user events. Triggers escrow release when Helper joins before 50% mark |
+| `GET` | `/api/zego/webhook/latest` | ❌ Public | Returns the most recent Zego webhook payload received (for debugging/testing) |
 
 ---
 
@@ -536,23 +561,24 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
               [Hangfire fires at ScheduledAt]
                            │
                     ┌──────▼──────┐
-                    │   Active    │◄───── (Can cancel from Pending/Accepted)
+                    │   Active    │◄───── (Can cancel from Pending/Accepted/ReOffered)
                     │(ZegoRoom    │                │
                     │  Open)      │         ┌──────▼──────┐
                     └──────┬──────┘         │  Cancelled  │
                            │                │(Credits     │
-              [Session duration ends]       │ Refunded)   │
-              [Hangfire fires CloseSession] └─────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │  Completed  │
-                    │(Credits     │
-                    │ Released    │
-                    │ to Helper)  │
-                    └─────────────┘
+                           ├──────────────┐ │ Refunded)   │
+      [Helper Joins        │              │ └─────────────┘
+       Before 50% Mark]    │              │ [Helper Never Joins]
+      (Escrow Released     │              │ (Hangfire CloseSession)
+       to Helper)          │              │
+                    ┌──────▼──────┐ ┌─────▼──────┐
+                    │  Completed  │ │  Expired   │
+                    │(Credits     │ │(Credits    │
+                    │ Transferred)│ │ Refunded)  │
+                    └─────────────┘ └────────────┘
                            
-        Any status can also have → ReOffered (via /reschedule)
-        ReOffered → Accepted or Cancelled
+        Any status (Pending/Accepted/ReOffered) can go → ReOffered (via /reschedule)
+        ReOffered → Accepted or Cancelled (Turn-based negotiation enforced via PendingRescheduleByUserId)
 ```
 
 ### 6.2 Who Can Perform Each Action
@@ -563,11 +589,11 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
 | Accept (Offer flow) | **Requester only** | No EscrowHold yet (credits charged on acceptance) |
 | Decline | **Helper only** | Session must be `Pending` |
 | Cancel | **Either participant** | Session must be `Pending`, `Accepted`, or `ReOffered` |
-| Reschedule | **Either participant** | Session must be `Pending`, `Accepted`, or `ReOffered` |
-| Accept (ReOffered) | **The OTHER party** who did NOT make the last reschedule | Cannot accept your own reschedule proposal |
+| Reschedule | **Either participant** | Session must be `Pending`, `Accepted`, or `ReOffered`. Cannot propose consecutive reschedules without response (`PendingRescheduleByUserId != actingUserId`). |
+| Accept (ReOffered) | **The OTHER party** who did NOT make the last reschedule | Cannot accept your own reschedule proposal (`PendingRescheduleByUserId != actingUserId`) |
 | View Session Details | **Either participant** | — |
-| Get Zego Token | **Either participant** | Session must be `Accepted` or `Active`, within time window |
-| Submit Rating | **Either participant** | Session must be `Completed`; no existing rating for session |
+| Get Zego Token | **Either participant** | Session must be `Accepted` or `Active`, within time window (-2 min early join to session end) |
+| Submit Rating | **Either participant** | Session must be `Completed`; caller has not yet submitted a rating for this session |
 | View Session Rating | **Either participant** | — |
 | View User's Public Reviews | **Anyone** | `GET /api/Ratings/user/{userId}` |
 
@@ -581,7 +607,22 @@ Validators exist for future admin use. Not exposed via HTTP endpoints currently.
 | Session must be live | Status must be `Accepted` or `Active` | `400` `"Session is not available to join."` |
 | Room must be configured | `ZegoRoomId` must not be null/empty | `500` `"Room not configured."` |
 
-**Important:** Access is allowed from **2 minutes before** start time (early-join window).
+> **Important:** Access is allowed from **2 minutes before** start time (early-join window).
+
+### 6.4 Zego Webhook & Attendance Logic
+
+ZegoCloud sends real-time room events to `POST /api/zego/webhook`:
+
+1. **Helper Join Detection (`room_user_join`)**:
+   - When the user joining the room matches `session.HelperId`.
+   - The session is in `Accepted` or `Active` status with `EscrowHold.Status == Held`.
+   - The Helper joins **before the halfway point** of the scheduled session (`now <= ScheduledAt + DurationMinutes / 2`).
+   - **Result:** Escrow is immediately released (`EscrowHold.Status = Released`), and credits are transferred to the Helper (`CreditTransaction: EscrowRelease`).
+
+2. **Helper No-Show / Timeout (`CloseSession` Hangfire Job)**:
+   - When the session duration ends and `CloseSession` executes.
+   - If `EscrowHold` is still `Held` (meaning Helper never joined on time):
+   - **Result:** `EscrowHold.Status = Refunded`, session status transitions to `Expired`, audit event logged, and credits are refunded back to the payer (`CreditTransaction: Refund`).
 
 ---
 
@@ -745,7 +786,11 @@ The system uses **Hangfire** for time-based session lifecycle automation. Jobs h
   "acceptedAt": "2026-06-12T18:00:00Z",
   "completedAt": null,
   "createdAt": "2026-06-12T17:00:00Z",
-  "zegoRoomId": "a1b2c3d4e5f6..."
+  "zegoRoomId": "a1b2c3d4e5f6...",
+  "pendingRescheduleByUser": false,
+  "userRated": false,
+  "userCanRate": true,
+  "userRatingScore": null
 }
 ```
 
@@ -845,6 +890,16 @@ The system uses **Hangfire** for time-based session lifecycle automation. Jobs h
 }
 ```
 
+### 9.12 Zego Webhook Payload (`ZegoWebhookDto`)
+```json
+{
+  "event": "room_user_join",
+  "roomId": "a1b2c3d4e5f6...",
+  "userAccount": "2",
+  "timestamp": 1718460000
+}
+```
+
 ---
 
 ## 10. HTTP Error Response Catalogue
@@ -875,7 +930,8 @@ All error responses return a JSON body in this format:
 | `400` | Self-offer | `"You cannot offer a session to yourself."` |
 | `400` | Insufficient credits | `"Insufficient credits. Required: X, Available: Y."` |
 | `400` | Accept non-pending session | `"Only pending or re-offered sessions can be accepted."` |
-| `400` | Accept own reschedule | `"You cannot accept your own reschedule proposal."` |
+| `400` | Accept own reschedule proposal | `"You cannot accept your own reschedule proposal."` |
+| `400` | Consecutive reschedule by same user | `"You must wait for the other participant to respond."` |
 | `400` | Decline non-pending session | `"Only pending sessions can be declined."` |
 | `400` | Cancel wrong status | `"Only pending, accepted, or re-offered sessions can be cancelled."` |
 | `400` | Reschedule wrong status | `"You can only reschedule pending, accepted, or re-offered sessions."` |
@@ -1155,6 +1211,30 @@ All error responses return a JSON body in this format:
 - **Pre-condition:** User has `CreditBalance = 20`.
 - **Expected:** User is skipped.
 
+### TC-SESSION-018: Consecutive Reschedule Attempt Blocked (Turn-Based Enforcement)
+- **Pre-condition:** User A proposes a reschedule for Session 42. Status transitions to `ReOffered` and `PendingRescheduleByUserId = User A`.
+- **Action:** User A attempts to call `POST /api/Sessions/42/reschedule` again before User B accepts or re-proposes.
+- **Expected:** `400 Bad Request`, `{ "message": "You must wait for the other participant to respond." }`.
+
+### TC-RATING-009: Both Session Participants Submit Rating for Same Completed Session
+- **Pre-condition:** Session 42 status is `Completed`.
+- **Action 1:** Requester (User A) submits rating for Session 42 (`POST /api/Ratings`).
+- **Expected 1:** `201 Created`, rating saved for User A.
+- **Action 2:** Helper (User B) submits rating for Session 42 (`POST /api/Ratings`).
+- **Expected 2:** `201 Created`, rating saved for User B.
+- **Action 3:** User A attempts to submit a second rating for Session 42.
+- **Expected 3:** `400 Bad Request`, `{ "message": "This session has already been rated." }`.
+
+### TC-ZEGO-001: Helper Joins Room Before Halfway Point (Escrow Released)
+- **Pre-condition:** Session 42 is scheduled for 14:00 (duration: 30 min). Escrow status is `Held`.
+- **Action:** Zego sends webhook payload `POST /api/zego/webhook` with `event = "room_user_join"` and `userAccount` = Helper's User ID at 14:05 UTC (before 14:15 UTC 50% mark).
+- **Expected:** Escrow status transitions to `Released`, credits are added to Helper's balance (`EscrowRelease`), and audit log entry created.
+
+### TC-ZEGO-002: Helper No-Show / Timeout (Session Expired & Refunded)
+- **Pre-condition:** Session 42 is scheduled for 14:00 (duration: 30 min). Helper never joins the Zego room.
+- **Action:** Hangfire job `CloseSession(42)` executes at 14:30 UTC.
+- **Expected:** Escrow status transitions to `Refunded`, session status transitions to `Expired`, audit event logged ("Helper did not join..."), and credits refunded to Requester.
+
 ---
 
 ## 12. Edge Cases & Negative Test Cases
@@ -1187,6 +1267,8 @@ All error responses return a JSON body in this format:
 | E-18 | Paginate users with `pageSize=-1` | `400 Bad Request` |
 | E-19 | Request 60-min session when balance is exactly 60 (boundary) | `201 Created` — exact match allowed |
 | E-20 | Request 60-min session when balance is exactly 59 (boundary) | `400 Bad Request` |
+| E-34 | Propose reschedule when current status is `ReOffered` by acting user | `400 Bad Request` — wait for other user response |
+| E-35 | Accept own reschedule proposal on `ReOffered` session | `400 Bad Request` — cannot accept own proposal |
 
 ### Skills & Catalog
 | # | Scenario | Expected |
@@ -1210,6 +1292,13 @@ All error responses return a JSON body in this format:
 | E-29 | Rate with score `3.55` (two decimal places) | `400 Bad Request` |
 | E-30 | Third party views session rating | `401 Unauthorized` |
 | E-31 | `ReviewText` exceeds 2000 characters | `400 Bad Request` |
+| E-36 | User attempts to rate the same completed session twice | `400 Bad Request` — `"This session has already been rated."` |
+
+### Zego Webhook
+| # | Scenario | Expected |
+|---|----------|----------|
+| E-37 | Webhook arrives with `room_user_join` for Requester (not Helper) | Webhook ignored silently (`200 OK`) |
+| E-38 | Webhook arrives for Helper joining past the 50% session duration mark | Webhook ignored silently (`200 OK`), CloseSession job handles expiration/refund |
 
 ### Rate Limiting
 | # | Scenario | Expected |
@@ -1224,8 +1313,9 @@ All error responses return a JSON body in this format:
 ---
 
 *Document generated from source code analysis of SkillifyAPI.*  
-*Swagger version: v1.3*  
-*Controllers: UsersController, SessionsController, MainSkillsController, SubSkillsController, LanguagesController, BadgesController, NotificationsController, CreditTransactionsController, RatingsController*  
-*Validators: RegisterValidator, LoginValidator, CompleteProfileValidator, SubmitRatingValidator, GiveGiftCreditsDtoValidator, BulkGiftCreditsDtoValidator*  
+*Target Framework: .NET 10 (`net10.0`) | Database: SQL Server 2025*  
+*Swagger version: v1.3 (Swashbuckle v10 / OpenAPI v2)*  
+*Controllers: UsersController, SessionsController, MainSkillsController, SubSkillsController, LanguagesController, BadgesController, NotificationsController, CreditTransactionsController, RatingsController, ZegoWebhookController*  
+*Validators: RegisterValidator, LoginValidator, CompleteProfileValidator, SubmitRatingValidator, GiveGiftCreditsDtoValidator, BulkGiftCreditsDtoValidator, SessionValidator*  
 *Services: UserService, SessionMeetingService, NotificationService, CreditService, CreditTransactionService, RatingService, BadgeService, MainSkillService, SubSkillService, LanguageService*  
 *Background Jobs: OpenSession, CloseSession, DailyGift*

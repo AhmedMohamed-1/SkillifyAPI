@@ -16,7 +16,7 @@ namespace SkillifyAPI.Firebase
         {
             var message = new Message
             {
-                Token = token,
+                Fid = token,
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = title,
@@ -43,7 +43,7 @@ namespace SkillifyAPI.Firebase
 
             var messages = tokens.Select(token => new Message
             {
-                Token = token,
+                Fid = token,
                 Notification = new FirebaseAdmin.Messaging.Notification
                 {
                     Title = title,
