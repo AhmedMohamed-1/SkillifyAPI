@@ -1,5 +1,47 @@
 # Changelog
 
+## [v2.0.0] - 2026-09-24
+
+### Added
+
+- Added a dedicated **SkillifyAPI.Application** project for application logic, use cases, DTOs, interfaces, validators, and service abstractions.
+- Added a dedicated **SkillifyAPI.Domain** project for core domain entities and business rules.
+- Added a dedicated **SkillifyAPI.Infrastructure** project for database access, repositories, external service implementations, and infrastructure concerns.
+- Established explicit project dependency boundaries following **Clean Architecture** principles.
+- Added solution-level organization to support the new multi-project architecture.
+
+### Changed
+
+- **Major architectural refactor:** migrated the backend from the previous single-project structure to a multi-project **Clean Architecture** solution.
+- Separated **API / Presentation**, **Application**, **Domain**, and **Infrastructure** responsibilities into independent projects.
+- Moved application-specific logic out of the API project into the **Application** layer.
+- Moved domain entities and core business rules into the **Domain** layer.
+- Moved infrastructure implementations such as **EF Core**, repositories, and external service integrations into the **Infrastructure** layer.
+- Refactored project dependencies to follow **Dependency Inversion**, keeping the Domain layer independent from infrastructure and framework-specific implementations.
+- Reorganized existing folders, services, repositories, DTOs, validators, and supporting components according to their architectural responsibilities.
+- Changed the Git repository root from the `SkillifyAPI` project directory to the `DEPI` solution directory so the complete multi-project solution is tracked in a single repository.
+- Updated the solution structure to support future test projects and additional application components.
+- Updated `.gitignore` to exclude Visual Studio **PublishProfiles** and user-specific publish configuration files from source control.
+
+### Refactored
+
+- Refactored the existing backend functionality to work across the new Clean Architecture project boundaries without changing the core platform functionality.
+- Decoupled business/application logic from API-specific concerns.
+- Decoupled infrastructure implementations from the core application and domain layers.
+- Reorganized dependency injection registrations to accommodate the new project structure.
+- Reorganized namespaces and project references following the new architectural boundaries.
+
+### Architecture
+
+The solution is now organized as:
+
+- **SkillifyAPI** — Presentation / HTTP API layer.
+- **SkillifyAPI.Application** — Application logic, use cases, contracts, DTOs, validators, and abstractions.
+- **SkillifyAPI.Domain** — Domain entities and core business rules.
+- **SkillifyAPI.Infrastructure** — EF Core, repositories, external services, and infrastructure implementations.
+
+The new dependency structure follows the principle that the **Domain and Application layers remain independent from infrastructure implementation details**, providing a cleaner foundation for future development and testing.
+
 ## [v1.3.0] - 2026-07-28
 
 ### Changed
