@@ -396,4 +396,3 @@ This project is licensed under the [View-Only License](./LICENSE).
 
 ---
 
-**Built by Ahmed Mohamed** · Digital Egypt Pioneers Initiative (DEPI)

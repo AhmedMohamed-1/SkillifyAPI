@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 using SkillifyAPI.BackgroundService;
 using SkillifyAPI.CloudinaryService;
 using SkillifyAPI.Data;
@@ -45,6 +46,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 var firebasePath = Path.Combine(
     builder.Environment.ContentRootPath,
+    "..",
+    "SkillifyAPI.Infrastructure",
     "Firebase",
     "skillifyapi-firebase-adminsdk-fbsvc-a34987d0d8.json");
 
@@ -285,7 +288,16 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
         options.DisplayRequestDuration();
     });
 
-    app.MapGet("/", () => Results.Redirect("/swagger"))
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Skillify API")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
+            .AddDocument("v1.3", "Skillify API v1.3", "/swagger/v1.3/swagger.json");
+    });
+
+    app.MapGet("/", () => Results.Redirect("/scalar"))
         .ExcludeFromDescription();
 }
 
@@ -294,8 +306,6 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     await context.Database.MigrateAsync();
-
-    await DataSeeder.Seed(context);
 }
 
 //using (var scope = app.Services.CreateScope())

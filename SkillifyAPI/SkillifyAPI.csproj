@@ -48,6 +48,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.2.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="10.0.1" />
+
+    <!-- Scalar -->
+    <PackageReference Include="Scalar.AspNetCore" Version="2.11.1" />
   </ItemGroup>
 
 
@@ -56,5 +59,9 @@
     <Folder Include="Validations\SkillValidation\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SkillifyAPI.Application\SkillifyAPI.Application.csproj" />
+    <ProjectReference Include="..\SkillifyAPI.Infrastructure\SkillifyAPI.Infrastructure.csproj" />
+  </ItemGroup>
 
 </Project>
